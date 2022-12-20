@@ -1,1 +1,2 @@
-README_cn.md
+# PPDetectionPytorch
+> use pytorch to reimplement paddle detection 
