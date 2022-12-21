@@ -220,8 +220,8 @@ def run_picodet_coco_batch():
     model_class = "yolov3"
     model_class = "yolov5"
     model_class = "yolov6"
-    model_class = "yolov7"
-    model_class = "rtmdet"
+    # model_class = "yolov7"
+    # model_class = "rtmdet"
 
     with_application = False
     # with_application = True
@@ -230,7 +230,7 @@ def run_picodet_coco_batch():
     do_transform = True
 
     # base_dir = f"/home/mqq/shenglei/ocr/PaddleDetection/configs/{model_class}"
-    base_dir = f"{Constants.DATA_DIR}/detection/configs/{model_class}"
+    base_dir = f"{Constants.WORK_DIR}/configs/{model_class}"
     if with_application:
         base_dir = f"{base_dir}/application"
     file_name_list = FileUtils.list_dir_or_file(file_dir=base_dir,
@@ -261,5 +261,5 @@ def run_picodet_coco_batch():
 
 
 if __name__ == '__main__':
-    demo_run_detection_infer()
-    # run_picodet_coco_batch()
+    # demo_run_detection_infer()
+    run_picodet_coco_batch()
