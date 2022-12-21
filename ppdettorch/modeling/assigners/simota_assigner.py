@@ -21,7 +21,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from ppdettorch.core.workspace import register
-from ppdettorch.loss.detection.varifocal_loss import varifocal_loss
+from ppdettorch.modeling.losses.varifocal_loss import varifocal_loss
 from ppdettorch.modeling.bbox_utils import batch_bbox_overlaps
 
 

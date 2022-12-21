@@ -25,7 +25,7 @@ import torch.nn.functional as F
 from scipy.optimize import linear_sum_assignment
 
 from ppdettorch.core.workspace import register, serializable
-from ppdettorch.loss.detection.iou_loss import GIoULoss
+from  ppdettorch.modeling.losses.iou_loss import GIoULoss
 from .utils import bbox_cxcywh_to_xyxy
 
 __all__ = ['HungarianMatcher']

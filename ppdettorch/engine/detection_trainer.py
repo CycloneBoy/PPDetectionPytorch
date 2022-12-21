@@ -22,6 +22,7 @@ import numpy as np
 import typing
 from PIL import Image, ImageOps, ImageFile
 
+from ppdettorch.metrics import get_infer_results
 from ppdettorch.utils.detection_checkpoint_utils import load_pretrain_weight
 from ppdettorch.utils.detection_visualizer import visualize_results
 from ppdettorch.utils.file_utils import FileUtils
@@ -48,7 +49,7 @@ from ppdettorch.core.workspace import create
 # import ppdet.utils.stats as stats
 # from ppdet.utils.fuse_utils import fuse_conv_bn
 # from ppdet.utils import profiler
-# from ppdettorch.model.detection.modeling.post_process import multiclass_nms
+# from  ppdettorch.modeling.post_process import multiclass_nms
 #
 # from .callbacks import Callback, ComposeCallback, LogPrinter, Checkpointer, WiferFaceEval, VisualDLWriter, SniperProposalsGenerator, WandbCallback
 # from .export_utils import _dump_infer_config, _prune_input_spec

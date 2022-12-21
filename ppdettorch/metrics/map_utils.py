@@ -22,8 +22,8 @@ import sys
 import numpy as np
 import itertools
 
-from ppdettorch.metrics.detection.metrics import logger
-from ppdettorch.model.detection.modeling import poly2rbox_np
+from ppdettorch.metrics.metrics import logger
+from  ppdettorch.modeling import poly2rbox_np
 
 __all__ = [
     'draw_pr_curve',

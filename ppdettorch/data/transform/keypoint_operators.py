@@ -29,7 +29,7 @@ import numpy as np
 import math
 import copy
 
-from ppdettorch.model.detection.modeling.keypoint_utils import get_affine_mat_kernel, warp_affine_joints, get_affine_transform, affine_transform, get_warp_matrix
+from  ppdettorch.modeling.keypoint_utils import get_affine_mat_kernel, warp_affine_joints, get_affine_transform, affine_transform, get_warp_matrix
 from ppdettorch.core.workspace import serializable
 
 

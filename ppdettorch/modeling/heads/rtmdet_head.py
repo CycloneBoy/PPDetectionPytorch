@@ -18,7 +18,7 @@ import torch.nn.functional as F
 from ppdettorch.core.workspace import register
 
 from ..bbox_utils import batch_distance2bbox
-from ppdettorch.loss.detection import GIoULoss, QualityFocalLoss, IouLoss
+from  ppdettorch.modeling.losses import GIoULoss, QualityFocalLoss, IouLoss
 from ppdettorch.modeling.backbones.csp_darknet import BaseConv
 from ppdettorch.modeling.layers import MultiClassNMS
 

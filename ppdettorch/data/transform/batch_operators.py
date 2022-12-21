@@ -31,7 +31,7 @@ from .op_helper import jaccard_overlap, gaussian2D, gaussian_radius, draw_umich_
 from .atss_assigner import ATSSAssigner
 from scipy import ndimage
 
-from ppdettorch.model.detection.modeling.keypoint_utils import get_affine_transform, affine_transform
+from  ppdettorch.modeling.keypoint_utils import get_affine_transform, affine_transform
 
 __all__ = [
     'PadBatch',

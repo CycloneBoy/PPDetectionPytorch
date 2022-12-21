@@ -24,7 +24,7 @@ from collections import defaultdict
 import numpy as np
 from ppdettorch.utils.logger_utils import logger
 
-from ppdettorch.model.detection.modeling.bbox_utils import bbox_iou_np_expand
+from  ppdettorch.modeling.bbox_utils import bbox_iou_np_expand
 
 from .map_utils import ap_per_class
 from .metrics import Metric

@@ -18,7 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 # from paddle.nn.initializer import Constant, Uniform
 from ppdettorch.core.workspace import register
-from ppdettorch.loss.detection import CTFocalLoss, GIoULoss
+from  ppdettorch.modeling.losses import CTFocalLoss, GIoULoss
 
 
 class ConvLayer(nn.Module):

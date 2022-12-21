@@ -41,7 +41,7 @@ def git_commit():
     return str(git_commit)
 
 
-def write_version_py(filename='ppdet/version.py'):
+def write_version_py(filename='ppdettorch/version.py'):
     ver_str = """# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
 #
 full_version    = '%(version)s'
@@ -108,12 +108,12 @@ if __name__ == "__main__":
     setup(
         name='ppdettorch',
         packages=find_packages(exclude=("configs", "tools", "deploy")),
-        package_data={'ppdettorch.model_zoo': package_model_zoo()},
+        # package_data={'ppdettorch.model_zoo': package_model_zoo()},
         author='CycloneBoy',
         version=parse_version(),
         install_requires=parse_requirements('./requirements.txt'),
         description='Object detection and instance segmentation toolkit based on Pytorch',
-        long_description=readme(),
+        long_description="",
         long_description_content_type='text/markdown',
         url='https://github.com/CycloneBoy/PPDetectionPytorch',
         download_url='https://github.com/CycloneBoy/PPDetectionPytorch.git',

@@ -13,7 +13,8 @@ class Constants(object):
     常量工具类
 
     """
-    WORK_DIR = "./"
+    WORK_DIR = "/home/mqq/shenglei/ocr/PPDetectionPytorch"
+    # WORK_DIR = "./"
 
     DATA_DIR = f"{WORK_DIR}/data"
     LOG_DIR = f"{WORK_DIR}/logs"
@@ -21,3 +22,6 @@ class Constants(object):
     # 日志相关
     LOG_FILE = f"{LOG_DIR}/run.log"
     LOG_LEVEL = "debug"
+
+    # models
+    OUTPUT_MODELS_DIR = f"{WORK_DIR}/outputs/models"

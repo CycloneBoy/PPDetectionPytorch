@@ -25,7 +25,7 @@ import torch
 
 __all__ = ['face_eval_run', 'lmk2out']
 
-from ppdettorch.metrics.detection.metrics import logger
+from ppdettorch.utils.logger_utils import logger
 
 
 def face_eval_run(model,

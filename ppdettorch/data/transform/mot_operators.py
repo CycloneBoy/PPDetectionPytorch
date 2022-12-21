@@ -30,7 +30,7 @@ import math
 
 from .operators import BaseOperator, register_op
 from .batch_operators import Gt2TTFTarget
-from ppdettorch.model.detection.modeling.bbox_utils import bbox_iou_np_expand
+from  ppdettorch.modeling.bbox_utils import bbox_iou_np_expand
 
 from .op_helper import gaussian_radius
 

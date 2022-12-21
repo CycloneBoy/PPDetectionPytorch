@@ -25,7 +25,7 @@ import torch.nn.functional as F
 from ppdettorch.core.workspace import register
 # from ..initializer import normal_, constant_, bias_init_with_prob
 from ppdettorch.modeling.bbox_utils import bbox_center, batch_distance2bbox
-from ppdettorch.loss.detection import GIoULoss
+from  ppdettorch.modeling.losses import GIoULoss
 from ppdettorch.modeling.layers import ConvNormLayer
 from ppdettorch.modeling.ops import get_static_shape
 from ppdettorch.modeling.assigners.utils import generate_anchors_for_grid_cell

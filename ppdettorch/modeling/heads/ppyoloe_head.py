@@ -19,7 +19,7 @@ import torch.nn.functional as F
 from ppdettorch.core.workspace import register
 
 from ..bbox_utils import batch_distance2bbox
-from ppdettorch.loss import GIoULoss
+from ppdettorch.modeling.losses import GIoULoss
 from ..assigners.utils import generate_anchors_for_grid_cell
 from ppdettorch.modeling.backbones.cspresnet import ConvBNLayer
 from ppdettorch.modeling.ops import get_static_shape, get_act_fn

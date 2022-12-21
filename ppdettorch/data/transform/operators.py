@@ -53,7 +53,7 @@ from .op_helper import (satisfy_sample_constraint, filter_and_process,
                         is_poly, get_border)
 
 from ppdettorch.core.workspace import serializable
-from ppdettorch.model.detection.modeling.keypoint_utils import get_affine_transform, affine_transform
+from ppdettorch.modeling.keypoint_utils import get_affine_transform, affine_transform
 
 registered_ops = []
 

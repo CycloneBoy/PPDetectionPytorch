@@ -32,7 +32,7 @@ import math
 import copy
 
 from .operators import register_op, BaseOperator
-from ppdettorch.model.detection.modeling.rbox_utils import poly2rbox_le135_np, poly2rbox_oc_np, rbox2poly_np
+from  ppdettorch.modeling.rbox_utils import poly2rbox_le135_np, poly2rbox_oc_np, rbox2poly_np
 
 
 

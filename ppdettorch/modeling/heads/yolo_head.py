@@ -21,7 +21,7 @@ from ppdettorch.core.workspace import register
 import math
 import numpy as np
 from ..backbones.csp_darknet import BaseConv, DWConv
-from ppdettorch.loss import IouLoss
+from ppdettorch.modeling.losses import IouLoss
 from ppdettorch.modeling.assigners.simota_assigner import SimOTAAssigner
 from ppdettorch.modeling.bbox_utils import bbox_overlaps
 from ppdettorch.modeling.layers import MultiClassNMS
@@ -311,7 +311,7 @@ class YOLOXHead(nn.Module):
 
     def get_loss(self, head_outs, targets):
         pred_cls, pred_bboxes, pred_obj, \
-        anchor_points, stride_tensor, num_anchors_list = head_outs
+            anchor_points, stride_tensor, num_anchors_list = head_outs
         gt_labels = targets['gt_class']
         gt_bboxes = targets['gt_bbox']
         pred_scores = (pred_cls * pred_obj).sqrt()

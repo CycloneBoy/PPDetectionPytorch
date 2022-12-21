@@ -28,7 +28,7 @@ import torch.nn.functional as F
 
 from ppdettorch.core.workspace import register
 from ppdettorch.modeling.bbox_utils import distance2bbox, bbox2distance
-from ppdettorch.our_datasets.detection.transform.atss_assigner import bbox_overlaps
+from ppdettorch.data.transform.atss_assigner import bbox_overlaps
 
 from .gfl_head import GFLHead
 
