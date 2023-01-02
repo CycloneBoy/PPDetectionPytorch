@@ -107,7 +107,7 @@ class DetectionInferUtils(BaseUtil):
         parser.add_argument(
             "--do_transform",
             type=bool,
-            default=True,
+            default=False,
             help="Whether to transform paddle model to pytorch .")
         parser.add_argument(
             "--predict_labels",

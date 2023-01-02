@@ -25,8 +25,8 @@ class DetectionRunInfer(object):
     def __init__(self):
         self.base_dir_image = f"{Constants.DATA_DIR}/ocr/imgs_words/ch"
         self.run_time = TimeUtils.now_str_short()
-        self.base_dir = "/home/mqq/shenglei/ocr/PaddleDetection"
-        self.detection_config_dir = f"/home/mqq/shenglei/ocr/PPDetectionPytorch"
+        self.base_dir = Constants.WORK_DIR
+        self.detection_config_dir = f"{Constants.WORK_DIR}/configs"
         self.checkpoint_base_url = "https://paddledet.bj.bcebos.com/models"
         self.checkpoint_base_url_ppstructure = "https://paddleocr.bj.bcebos.com/ppstructure/models/layout/"
         self.checkpoint_base_url_pedestrian = "https://bj.bcebos.com/v1/paddledet/models/keypoint/tinypose_enhance/"
@@ -89,7 +89,7 @@ class DetectionRunInfer(object):
         main_detection(run_arg)
 
     def get_model_class(self, config_file):
-        begin_index = len(f"{self.detection_config_dir}/configs/")
+        begin_index = len(f"{self.detection_config_dir}/")
         config_name = config_file[begin_index:]
         end_index = config_name.find("/")
         model_class = config_name[:end_index]
@@ -173,7 +173,7 @@ class DetectionRunInfer(object):
             config_name_end_index = FileUtils.get_file_name(config_name).find("_")
             model_class = config_name[:config_name_end_index]
 
-        config_file = f"{self.detection_config_dir}/configs/{model_class}/{config_name}.yml"
+        config_file = f"{self.detection_config_dir}/{model_class}/{config_name}.yml"
 
         self.run_picodet_coco_model(config_file=config_file)
 
@@ -183,7 +183,7 @@ class DetectionRunInfer(object):
             picodet_l_320_coco_lcnet.yml
         :return:
         """
-        base_dir = f"{self.detection_config_dir}/configs/picodet"
+        base_dir = f"{self.detection_config_dir}/picodet"
         file_name_list = FileUtils.list_dir_or_file(file_dir=base_dir,
                                                     add_parent=True,
                                                     sort=True,
@@ -219,7 +219,7 @@ def run_picodet_coco_batch():
     model_class = "yolox"
     model_class = "yolov3"
     model_class = "yolov5"
-    model_class = "yolov6"
+    # model_class = "yolov6"
     # model_class = "yolov7"
     # model_class = "rtmdet"
 
