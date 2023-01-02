@@ -43,7 +43,8 @@
 #### 模型权重
 > 首次推理时自动下载对应configs 中的模型权重到 ~/.cache/paddle/weights目录，这个目录是PPDetection推理模型的下载指定目录，
 > 模型权重会自动转换成pytoch 权重，同时保存到当前目录。
-[模型权重自动转换代码](./convert_paddle_detection_to_torch.py)
+
+[模型权重自动转换代码](./ppdettorch/process/transform/convert_paddle_detection_to_torch.py)
 #### 运行推理测试
 > 目前只转换了部分模型权重: 
 [run_detection_infer.py](./tests/process/infer/run_detection_infer.py) 中 run_picodet_coco_batch函数 使用不同的model_class 进行推理测试
@@ -52,7 +53,6 @@
 #### 推理结果输出
 > 输出推理结果和对应网络的paddle和pytorch模型权重名称
 [推理输出目录](./outputs/models/detection)
-
 
 
 ## 参考
