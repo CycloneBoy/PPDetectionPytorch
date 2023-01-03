@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
-# @Project ：financial_ner 
+# @Project ：PPDetectionPytorch
 # @File    ：detection_checkpoint_utils.py
 # @Author  ：sl
 # @Date    ：2022/11/7 17:46

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
-# @Project ：financial_ner 
+# @Project ：PPDetectionPytorch
 # @File    ：__init__.py.py
 # @Author  ：sl
 # @Date    ：2022/11/1 14:45

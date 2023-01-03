@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
-# @Project ：financial_ner 
+# @Project ：PPDetectionPytorch
 # @File    ：convert_paddle_detection_to_torch.py
 # @Author  ：sl
 # @Date    ：2022/11/10 14:12

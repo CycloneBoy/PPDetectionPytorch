@@ -142,22 +142,22 @@ class DetectionRunInfer(object):
         config_name = "yolov3_mobilenet_v3_large_270e_coco.yml"
         # config_name = "yolov3_darknet53_270e_coco.yml"
 
-        # yolov5
-        config_name = "yolov5_s_300e_coco.yml"
-
-        # convnext
-        config_name = "yolov5_convnext_s_36e_coco.yml"
-        config_name = "yolox_convnext_s_36e_coco.yml"
-        config_name = "ppyoloe_convnext_tiny_36e_coco.yml"
-
-        # yolov6
-        config_name = "yolov6_s_400e_coco.yml"
-
-        # yolov7
-        config_name = "yolov7_l_300e_coco.yml"
-
-        # rtmdet
-        config_name = "rtmdet_s_300e_coco.yml"
+        # # yolov5
+        # config_name = "yolov5_s_300e_coco.yml"
+        #
+        # # convnext
+        # config_name = "yolov5_convnext_s_36e_coco.yml"
+        # config_name = "yolox_convnext_s_36e_coco.yml"
+        # config_name = "ppyoloe_convnext_tiny_36e_coco.yml"
+        #
+        # # yolov6
+        # config_name = "yolov6_s_400e_coco.yml"
+        #
+        # # yolov7
+        # config_name = "yolov7_l_300e_coco.yml"
+        #
+        # # rtmdet
+        # config_name = "rtmdet_s_300e_coco.yml"
 
         # run_arg = DetectionInferUtils.init_args()
         config_name = config_name if not config_name.endswith(".yml") else config_name[:-4]
@@ -261,5 +261,5 @@ def run_picodet_coco_batch():
 
 
 if __name__ == '__main__':
-    # demo_run_detection_infer()
-    run_picodet_coco_batch()
+    demo_run_detection_infer()
+    # run_picodet_coco_batch()
