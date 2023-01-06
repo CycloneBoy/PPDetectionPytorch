@@ -11,7 +11,7 @@ This project aims to:
 - Provide a reference for paddle to pytorch
 
 ## TODO
-- [x] yolov3 reasoning part of the target detection situation coordinate conversion part
+- [x] Coordinate transformation of target detection in yolov3 inference part
 - [ ] Rotating frame detection model PP-YOLOE-R
 - [ ] Small target detection model PP-YOLOE-SOD
 - [ ] PP-Human v2
