@@ -260,6 +260,7 @@ def rescale_boxes(boxes, current_dim, original_shape):
     Rescales bounding boxes to the original shape
     """
     orig_h, orig_w = original_shape
+    print(f"current_dim: {current_dim} -original_shape: {original_shape}")
 
     # The amount of padding that was added
     pad_x = max(orig_h - orig_w, 0) * (current_dim / max(original_shape))
@@ -631,3 +632,208 @@ def iou_similarity(box1, box2, eps=1e-10):
     area2 = (gx2y2 - gx1y1).clip(0).prod(-1)
     union = area1 + area2 - overlap + eps
     return overlap / union
+
+
+def yolo_box_pytorch(x,
+                     img_size,
+                     anchors,
+                     class_num,
+                     conf_thresh,
+                     downsample_ratio,
+                     clip_bbox=True,
+                     name=None,
+                     scale_x_y=1.,
+                     iou_aware=False,
+                     iou_aware_factor=0.5):
+    r"""
+
+    This operator generates YOLO detection boxes from output of YOLOv3 network.
+
+    The output of previous network is in shape [N, C, H, W], while H and W
+    should be the same, H and W specify the grid size, each grid point predict
+    given number boxes, this given number, which following will be represented as S,
+    is specified by the number of anchors. In the second dimension(the channel
+    dimension), C should be equal to S * (5 + class_num) if :attr:`iou_aware` is false,
+    otherwise C should be equal to S * (6 + class_num). class_num is the object
+    category number of source dataset(such as 80 in coco dataset), so the
+    second(channel) dimension, apart from 4 box location coordinates x, y, w, h,
+    also includes confidence score of the box and class one-hot key of each anchor
+    box.
+
+    Assume the 4 location coordinates are :math:`t_x, t_y, t_w, t_h`, the box
+    predictions should be as follows:
+
+    $$
+    b_x = \\sigma(t_x) + c_x
+    $$
+    $$
+    b_y = \\sigma(t_y) + c_y
+    $$
+    $$
+    b_w = p_w e^{t_w}
+    $$
+    $$
+    b_h = p_h e^{t_h}
+    $$
+
+    in the equation above, :math:`c_x, c_y` is the left top corner of current grid
+    and :math:`p_w, p_h` is specified by anchors.
+
+    The logistic regression value of the 5th channel of each anchor prediction boxes
+    represents the confidence score of each prediction box, and the logistic
+    regression value of the last :attr:`class_num` channels of each anchor prediction
+    boxes represents the classifcation scores. Boxes with confidence scores less than
+    :attr:`conf_thresh` should be ignored, and box final scores is the product of
+    confidence scores and classification scores.
+
+    $$
+    score_{pred} = score_{conf} * score_{class}
+    $$
+
+    where the confidence scores follow the formula bellow
+
+    .. math::
+
+        score_{conf} = \begin{case}
+                         obj, \text{if } iou_aware == flase \\
+                         obj^{1 - iou_aware_factor} * iou^{iou_aware_factor}, \text{otherwise}
+                       \end{case}
+
+    Args:
+        x (Tensor): The input tensor of YoloBox operator is a 4-D tensor with
+                      shape of [N, C, H, W]. The second dimension(C) stores box
+                      locations, confidence score and classification one-hot keys
+                      of each anchor box. Generally, X should be the output of
+                      YOLOv3 network. The data type is float32 or float64.
+        img_size (Tensor): The image size tensor of YoloBox operator, This is a
+                           2-D tensor with shape of [N, 2]. This tensor holds
+                           height and width of each input image used for resizing
+                           output box in input image scale. The data type is int32.
+        anchors (list|tuple): The anchor width and height, it will be parsed pair
+                              by pair.
+        class_num (int): The number of classes.
+        conf_thresh (float): The confidence scores threshold of detection boxes.
+                             Boxes with confidence scores under threshold should
+                             be ignored.
+        downsample_ratio (int): The downsample ratio from network input to
+                                :attr:`yolo_box` operator input, so 32, 16, 8
+                                should be set for the first, second, and thrid
+                                :attr:`yolo_box` layer.
+        clip_bbox (bool): Whether clip output bonding box in :attr:`img_size`
+                          boundary. Default true.
+        scale_x_y (float): Scale the center point of decoded bounding box.
+                           Default 1.0
+        name (string): The default value is None.  Normally there is no need
+                       for user to set this property.  For more information,
+                       please refer to :ref:`api_guide_Name`
+        iou_aware (bool): Whether use iou aware. Default false
+        iou_aware_factor (float): iou aware factor. Default 0.5
+
+    Returns:
+        Tensor: A 3-D tensor with shape [N, M, 4], the coordinates of boxes,
+        and a 3-D tensor with shape [N, M, :attr:`class_num`], the classification
+        scores of boxes.
+
+    Raises:
+        TypeError: Input x of yolov_box must be Tensor
+        TypeError: Attr anchors of yolo box must be list or tuple
+        TypeError: Attr class_num of yolo box must be an integer
+        TypeError: Attr conf_thresh of yolo box must be a float number
+
+    Examples:
+
+    .. code-block:: python
+
+        import paddle
+        import numpy as np
+
+        x = np.random.random([2, 14, 8, 8]).astype('float32')
+        img_size = np.ones((2, 2)).astype('int32')
+
+        x = paddle.to_tensor(x)
+        img_size = paddle.to_tensor(img_size)
+
+        boxes, scores = paddle.vision.ops.yolo_box(x,
+                                                   img_size=img_size,
+                                                   anchors=[10, 13, 16, 30],
+                                                   class_num=2,
+                                                   conf_thresh=0.01,
+                                                   downsample_ratio=8,
+                                                   clip_bbox=True,
+                                                   scale_x_y=1.)
+    """
+    run_device = x.device
+    (n, c, h, w) = x.shape
+    an_num = int((len(anchors) // 2))
+
+    bias_x_y = (-0.5) * (scale_x_y - 1.0)
+    input_h = downsample_ratio * h
+    input_w = downsample_ratio * w
+    if iou_aware:
+        ioup = x[:, :an_num, :, :]
+        ioup = ioup.unsqueeze(-1)
+        x = x[:, an_num:, :, :]
+
+    x = x.view((n, an_num, (5 + class_num), h, w)).permute(0, 1, 3, 4, 2).contiguous()
+
+    pred_box = torch.clone(x[..., :4])
+
+    # grid_x = np.tile(np.arange(w).reshape((1, w)), (h, 1))
+    # grid_y = np.tile(np.arange(h).reshape((h, 1)), (1, w))
+
+    grid_y, grid_x = torch.meshgrid([torch.arange(h), torch.arange(w)], indexing='ij')
+
+    grid_y = grid_y.to(run_device)
+    grid_x = grid_x.to(run_device)
+
+    pred_box[..., 0] = (
+                               (grid_x + (pred_box[..., 0].sigmoid() * scale_x_y)) + bias_x_y
+                       ) / w
+    pred_box[..., 1] = (
+                               (grid_y + (pred_box[..., 1].sigmoid() * scale_x_y)) + bias_x_y
+                       ) / h
+    anchors = [
+        (anchors[i], anchors[(i + 1)]) for i in range(0, len(anchors), 2)
+    ]
+    anchors_s = np.array(
+        [((an_w / input_w), (an_h / input_h)) for (an_w, an_h) in anchors]
+    )
+    anchors_s = torch.tensor(anchors_s, device=run_device)
+    anchor_w = anchors_s[:, 0:1].reshape(1, an_num, 1, 1)
+    anchor_h = anchors_s[:, 1:2].reshape(1, an_num, 1, 1)
+
+    pred_box[..., 2] = torch.exp(pred_box[..., 2]) * anchor_w
+    pred_box[..., 3] = torch.exp(pred_box[..., 3]) * anchor_h
+    if iou_aware:
+        pred_conf = (x[..., 4:5].sigmoid() ** (1 - iou_aware_factor)) * (
+                torch.sigmoid(ioup) ** iou_aware_factor
+        )
+    else:
+        pred_conf = x[..., 4:5].sigmoid()
+
+    pred_conf[(pred_conf < conf_thresh)] = 0.0
+    pred_score = x[..., 5:].sigmoid() * pred_conf
+    pred_box = pred_box * (pred_conf > 0.0)
+    pred_box = pred_box.reshape(n, -1, 4)
+    (pred_box[..., :2], pred_box[..., 2:4]) = (
+        (pred_box[..., :2] - (pred_box[..., 2:4] / 2.0)),
+        (pred_box[..., :2] + (pred_box[..., 2:4] / 2.0)),
+    )
+
+    # pred_box = xywh2xyxy_v2(pred_box[:, :4])
+
+    pred_box[..., 0] = pred_box[..., 0] * img_size[:, 1]
+    pred_box[..., 1] = pred_box[..., 1] * img_size[:, 0]
+    pred_box[..., 2] = pred_box[..., 2] * img_size[:, 1]
+    pred_box[..., 3] = pred_box[..., 3] * img_size[:, 0]
+    if clip_bbox:
+        for i in range(len(pred_box)):
+            pred_box[i, :, 0] = torch.clamp(pred_box[i, :, 0], 0, torch.inf)
+            pred_box[i, :, 1] = torch.clamp(pred_box[i, :, 1], 0, torch.inf)
+            pred_box[i, :, 2] = torch.clamp(
+                pred_box[i, :, 2], (-torch.inf), (img_size[(i, 1)] - 1)
+            )
+            pred_box[i, :, 3] = torch.clamp(
+                pred_box[i, :, 3], (-torch.inf), (img_size[(i, 0)] - 1)
+            )
+    return (pred_box, pred_score.view(n, -1, class_num))

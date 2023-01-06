@@ -71,23 +71,23 @@ class YOLOv3Loss(nn.Module):
         # pbox
         pbox = decode_yolo(pbox, anchor, downsample)
         pbox = xywh2xyxy(pbox)
-        pbox = paddle.concat(pbox, axis=-1)
+        pbox = torch.concat(pbox, axis=-1)
         b = pbox.shape[0]
         pbox = pbox.reshape((b, -1, 4))
         # gbox
         gxy = gbox[:, :, 0:2] - gbox[:, :, 2:4] * 0.5
         gwh = gbox[:, :, 0:2] + gbox[:, :, 2:4] * 0.5
-        gbox = paddle.concat([gxy, gwh], axis=-1)
+        gbox = torch.concat([gxy, gwh], axis=-1)
 
         iou = batch_iou_similarity(pbox, gbox)
         iou.stop_gradient = True
         iou_max = iou.max(2)  # [N, M1]
-        iou_mask = paddle.cast(iou_max <= self.ignore_thresh, dtype=pbox.dtype)
+        iou_mask = torch.cast(iou_max <= self.ignore_thresh, dtype=pbox.dtype)
         iou_mask.stop_gradient = True
 
         pobj = pobj.reshape((b, -1))
         tobj = tobj.reshape((b, -1))
-        obj_mask = paddle.cast(tobj > 0, dtype=pbox.dtype)
+        obj_mask = torch.cast(tobj > 0, dtype=pbox.dtype)
         obj_mask.stop_gradient = True
 
         loss_obj = F.binary_cross_entropy_with_logits(
@@ -101,8 +101,8 @@ class YOLOv3Loss(nn.Module):
             delta = min(1. / self.num_classes, 1. / 40)
             pos, neg = 1 - delta, delta
             # 1 for positive, 0 for negative
-            tcls = pos * paddle.cast(
-                tcls > 0., dtype=tcls.dtype) + neg * paddle.cast(
+            tcls = pos * torch.cast(
+                tcls > 0., dtype=tcls.dtype) + neg * torch.cast(
                 tcls <= 0., dtype=tcls.dtype)
 
         loss_cls = F.binary_cross_entropy_with_logits(
@@ -139,14 +139,14 @@ class YOLOv3Loss(nn.Module):
             loss_y = F.binary_cross_entropy(y, ty, reduction='none')
             loss_xy = tscale_obj * (loss_x + loss_y)
         else:
-            loss_x = paddle.abs(x - tx)
-            loss_y = paddle.abs(y - ty)
+            loss_x = torch.abs(x - tx)
+            loss_y = torch.abs(y - ty)
             loss_xy = tscale_obj * (loss_x + loss_y)
 
         loss_xy = loss_xy.sum([1, 2, 3, 4]).mean()
 
-        loss_w = paddle.abs(w - tw)
-        loss_h = paddle.abs(h - th)
+        loss_w = torch.abs(w - tw)
+        loss_h = torch.abs(h - th)
         loss_wh = tscale_obj * (loss_w + loss_h)
         loss_wh = loss_wh.sum([1, 2, 3, 4]).mean()
 

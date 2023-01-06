@@ -31,9 +31,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
+from ppdettorch.modeling.losses.yolo_loss import bbox_transform
 from torchvision.ops import DeformConv2d
 
-from ppdettorch.modeling.bbox_utils import delta2bbox, xywh2xyxy_v2, rescale_boxes
+from ppdettorch.modeling.bbox_utils import delta2bbox, xywh2xyxy_v2, rescale_boxes, yolo_box_pytorch
 from ppdettorch.core.workspace import register, serializable
 
 from . import ops
@@ -257,21 +258,21 @@ class LiteConv(nn.Module):
             stride=stride,
             groups=in_channels,
             norm_type=norm_type,
-            initializer=XavierUniform())
+            )
         conv2 = ConvNormLayer(
             in_channels,
             out_channels,
             filter_size=1,
             stride=stride,
             norm_type=norm_type,
-            initializer=XavierUniform())
+            )
         conv3 = ConvNormLayer(
             out_channels,
             out_channels,
             filter_size=1,
             stride=stride,
             norm_type=norm_type,
-            initializer=XavierUniform())
+            )
         conv4 = ConvNormLayer(
             out_channels,
             out_channels,
@@ -279,7 +280,7 @@ class LiteConv(nn.Module):
             stride=stride,
             groups=out_channels,
             norm_type=norm_type,
-            initializer=XavierUniform())
+            )
         conv_list = [conv1, conv2, conv3, conv4]
         self.lite_conv.add_sublayer('conv1', conv1)
         self.lite_conv.add_sublayer('relu6_1', nn.ReLU6())
@@ -591,6 +592,8 @@ class YOLOBox(object):
         self.clip_bbox = clip_bbox
         self.scale_x_y = scale_x_y
 
+        self.sigmoid = nn.Sigmoid()
+
     def __call__(self,
                  yolo_head_out,
                  anchors,
@@ -601,59 +604,28 @@ class YOLOBox(object):
         scores_list = []
         origin_shape = im_shape / scale_factor
         origin_shape_list = origin_shape.detach().cpu().numpy().tolist()[0]
+
         # img_size = origin_shape_list[1]
         img_size = im_shape.detach().cpu().numpy().tolist()[0][0]
+        # print(f"c {im_shape} -scale_factor: {scale_factor} -origin_shape_list: {origin_shape_list} - img_size: {img_size}")
+
         for i, head_out in enumerate(yolo_head_out):
-            # boxes, scores = torchvision.ops.yolo_box(
-            #     head_out,
-            #     origin_shape,
-            #     anchors[i],
-            #     self.num_classes,
-            #     self.conf_thresh,
-            #     self.downsample_ratio // 2 ** i,
-            #     self.clip_bbox,
-            #     scale_x_y=self.scale_x_y)
-            new_anchors = anchors[i]
-            new_anchors = [(new_anchors[i], new_anchors[i + 1]) for i in range(0, len(new_anchors), 2)]
+            boxes, scores = yolo_box_pytorch(x=head_out,
+                                             img_size=origin_shape,
+                                             anchors=anchors[i],
+                                             class_num=self.num_classes,
+                                             conf_thresh=self.conf_thresh,
+                                             downsample_ratio=self.downsample_ratio // 2 ** i,
+                                             clip_bbox=self.clip_bbox,
+                                             scale_x_y=self.scale_x_y, )
 
-            yolo_layer = YOLOLayer(anchors=new_anchors, num_classes=self.num_classes)
-            yolo_layer.eval()
-            yolo_layer.to(yolo_head_out[0].device)
-            yolo_output = yolo_layer(x=head_out, img_size=img_size)
-            boxes = []
-            scores = []
-            boxes_list.append(yolo_output)
-            # boxes_list.append(boxes)
-            # scores_list.append(torch.permute(scores, [0, 2, 1]))
-
-        #    后处理
-        yolo_boxes = torch.concat(boxes_list, dim=1)
-        # yolo_scores = torch.concat(scores_list, dim=2)
-
-        prediction = yolo_boxes
-
-        boxes_list = []
-        scores_list = []
-        for xi, x in enumerate(prediction):  # image index, image inference
-            # Compute conf
-            x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
-
-            # Box (center x, center y, width, height) to (x1, y1, x2, y2)
-            box = xywh2xyxy_v2(x[:, :4])
-            # box_rescale = rescale_boxes(boxes=box, current_dim=img_size, original_shape=origin_shape_list)
-            box_rescale = box
-            boxes, scores = box_rescale, x[:, 5:]
-            boxes = boxes.unsqueeze(0)
-            scores = scores.unsqueeze(0).permute(0, 2, 1)
             boxes_list.append(boxes)
-            scores_list.append(scores)
+            scores_list.append(scores.permute(0, 2, 1))
 
-        boxes_ret = torch.concat(boxes_list, dim=1)
-        scores_ret = torch.concat(scores_list, dim=-1)
+        yolo_boxes = torch.concat(boxes_list, dim=1)
+        yolo_scores = torch.concat(scores_list, dim=2)
 
-        # return yolo_boxes, None
-        return boxes_ret, scores_ret
-
+        return yolo_boxes, yolo_scores
 
 class YOLOLayer(nn.Module):
     """Detection layer"""
@@ -977,7 +949,7 @@ class JDEBox(object):
 
     def decode_delta(self, delta, fg_anchor_list):
         px, py, pw, ph = fg_anchor_list[:, 0], fg_anchor_list[:, 1], \
-                         fg_anchor_list[:, 2], fg_anchor_list[:, 3]
+            fg_anchor_list[:, 2], fg_anchor_list[:, 3]
         dx, dy, dw, dh = delta[:, 0], delta[:, 1], delta[:, 2], delta[:, 3]
         gx = pw * dx + px
         gy = ph * dy + py
