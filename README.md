@@ -11,7 +11,7 @@
 - 提供为paddle转pytorch提供参考
 
 ## TODO
-- [ ] yolov3 推理部分的目标检测况坐标转换部分
+- [x] yolov3 推理部分的目标检测况坐标转换
 - [ ] 旋转框检测模型PP-YOLOE-R 
 - [ ] 小目标检测模型PP-YOLOE-SOD 
 - [ ] PP-Human v2 
@@ -26,6 +26,7 @@
 
 **近期更新**
 
+- 2023-01-06 yolov3 推理部分的目标检测况坐标转换
 - 2022-12-21 迁移模型推理部分：picodet,ppyoloe,yolox,yolov5,yolov6,yolov7,rtmdet
 - 2022-12-19 基础代码迁移
 
