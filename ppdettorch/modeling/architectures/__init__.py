@@ -31,6 +31,7 @@ from . import picodet
 from . import yolox
 from . import yolov5
 from . import rtmdet
+from . import yolov8
 
 from .meta_arch import *
 # from .faster_rcnn import *
@@ -59,3 +60,4 @@ from .picodet import *
 from .yolox import *
 from .yolov5 import *
 from .rtmdet import *
+from .yolov8 import *

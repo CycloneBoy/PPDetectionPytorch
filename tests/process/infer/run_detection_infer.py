@@ -159,6 +159,9 @@ class DetectionRunInfer(object):
         # # rtmdet
         # config_name = "rtmdet_s_300e_coco.yml"
 
+        # yolov8
+        config_name = f"yolov8_n_300e_coco.yml"
+
         # run_arg = DetectionInferUtils.init_args()
         config_name = config_name if not config_name.endswith(".yml") else config_name[:-4]
         # config_file = f"{self.base_dir}/configs/picodet/legacy_model/{config_name}.yml"
@@ -222,6 +225,7 @@ def run_picodet_coco_batch():
     # model_class = "yolov6"
     # model_class = "yolov7"
     # model_class = "rtmdet"
+    model_class = "yolov8"
 
     with_application = False
     # with_application = True

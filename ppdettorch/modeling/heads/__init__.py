@@ -30,6 +30,7 @@ from . import yolov5_head
 from . import yolov6_head
 from . import yolov7_head
 from . import rtmdet_head
+from . import yolov8_head
 
 # from .bbox_head import *
 # from .mask_head import *
@@ -56,3 +57,4 @@ from .yolov5_head import *
 from .yolov6_head import *
 from .yolov7_head import *
 from .rtmdet_head import *
+from .yolov8_head import *
