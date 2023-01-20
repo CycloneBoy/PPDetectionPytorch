@@ -10,6 +10,7 @@ from collections import OrderedDict
 import os
 import torch
 
+from ppdettorch.process.transform.convert_paddle_config import MODEL_PARAMS_CONFIG
 from ppdettorch.utils.match_utils import MatchUtils
 from ppdettorch.process.transform.convert_paddle_to_torch_base import ConvertPaddleToTorchBase
 from ppdettorch.utils.logger_utils import logger
@@ -18,172 +19,6 @@ from ppdettorch.utils.file_utils import FileUtils
 """
 转换  paddle detection model to torch
 """
-
-CONVERTER_PADDLE_MODEL_CONFIG = {
-    "yolov3": [
-        re.compile(r"(.*)\.(\d+)\.(\d+)\.(.*)"),
-        re.compile(r"(.*)\.(\d+)\.(downsample)\.(.*)"),
-        re.compile(r"(.*)\.(\d+)\.(.*)")
-    ],
-    "DB": [
-        re.compile(r"(backbone\.stage)(\d+)\.(\d+)\.(.*)"),
-    ],
-}
-
-CONVERTER_PADDLE_MODEL_WEIGHT_CONFIG = {
-    "SLANet": [
-        re.compile(r"structure_attention_cell.(i2h|h2h|score).weight"),
-        re.compile(r"(structure_generator|loc_generator)\.(\d+)\.weight"),
-    ],
-    # 语言模型
-    "LM": [
-        re.compile(r"encoder.layer\.(\d+)\..*\.weight"),
-        re.compile(r"visual_proj.weight"),
-    ]
-}
-# 模型参数变换
-MODEL_PARAMS_CONFIG = {
-    "yolov3": {
-        "rename": [
-            re.compile(r"(.*)\.(\d+)\.(\d+)\.(.*)"),
-            re.compile(r"(.*)\.(\d+)\.(downsample)\.(.*)"),
-            re.compile(r"(.*)\.(\d+)\.(.*)")
-        ],
-        "transpose": [],
-        "filter": [],
-    },
-    "yolov5": {
-        "rename": [
-            re.compile(r"(yolo_head\.yolo_output)\.(\d+)\.(.*)")
-        ],
-        "transpose": [
-            # yolov5_convnext_s
-            re.compile(r"backbone.stages.(\d+).(\d+).pwconv(\d+).weight")
-        ],
-        "filter": [],
-    },
-    "yolov5p6": {
-        "rename": [
-            re.compile(r"(yolo_head\.yolo_output)\.(\d+)\.(.*)")
-        ],
-        "transpose": [],
-        "filter": [],
-    },
-    "yolov6": {
-        "rename": [
-            re.compile(r"(backbone.stage\d+)\.(repconv|replayer|simsppf|bepc3layer|sppf)(.*)")
-        ],
-        "transpose": [],
-        "filter": [],
-    },
-    "yolov7": {
-        "rename": [
-            re.compile(r"(backbone.layers\d+)\.(stage\d+)\.(.*)"),
-            re.compile(r"(yolo_head.yolo_output)\.(\d+)(.*)")
-        ],
-        "transpose": [],
-        "filter": [],
-    },
-    "yolov7p6": {
-        "rename": [
-            re.compile(r"(backbone.layers\d+)\.(stage\d+)\.(.*)"),
-            re.compile(r"(yolo_head.yolo_output)\.(\d+)(.*)")
-        ],
-        "transpose": [],
-        "filter": [],
-    },
-    "yolox": {
-        "rename": [],
-        "transpose": [
-            # yolox_convnext_s_36e_coco
-            re.compile(r"backbone.stages.(\d+).(\d+).pwconv(\d+).weight")
-        ],
-        "filter": [],
-    },
-    "ppyoloe": {
-        "rename": [],
-        "transpose": [
-            # ppyoloe_convnext_tiny_36e_coco
-            re.compile(r"backbone.stages.(\d+).(\d+).pwconv(\d+).weight")
-        ],
-        "filter": [],
-    },
-    "rtmdet": {
-        "rename": [
-            re.compile(r"(backbone.layers\d+)\.(stage\d+)\.(.*)"),
-        ],
-        "transpose": [],
-        "filter": [],
-    },
-    "DB": {
-        "rename": [
-            re.compile(r"(backbone\.stage)(\d+)\.(\d+)\.(.*)"),
-        ],
-        "transpose": [],
-        "filter": [],
-    },
-    "SLANet": {
-        "rename": [],
-        "transpose": [
-            re.compile(r"structure_attention_cell.(i2h|h2h|score).weight"),
-            re.compile(r"(structure_generator|loc_generator)\.(\d+)\.weight"),
-        ],
-        "filter": [],
-    },
-    # 语言模型
-    "LM": {
-        "rename": [],
-        "transpose": [
-            re.compile(r"encoder.layer\.(\d+)\..*\.weight"),
-            re.compile(r"visual_proj.weight"),
-            re.compile(r"classifier\.weight"),
-        ],
-        "filter": [],
-    },
-    # OCR - DET
-    "CRNN": {
-        "rename": [
-            re.compile(r"(Student\.)(.*)"),
-        ],
-        "transpose": [
-            re.compile(r"head\.ctc_encoder\.encoder\.svtr_block\.(\d+)\..*\.weight"),
-            re.compile(r"head\.ctc_head\.fc\.weight"),
-            re.compile(r"head\.sar_head\.decoder\.(conv1x1_2|prediction)\.weight"),
-        ],
-        "filter": [
-            re.compile(r"Teacher\..*"),
-            re.compile(r"head.sar_head.(encoder|decoder).rnn_(encoder|decoder).(\d+).cell.*"),
-        ],
-    },
-    # OCR - CLS
-    "CLS": {
-        "rename": [],
-        "transpose": [
-            re.compile(r"head\.fc\.weight"),
-        ],
-        "filter": [],
-    },
-    # KIE SER
-    "VI-LayoutXLM": {
-        "rename": [],
-        "transpose": [],
-        "filter": [],
-        "prefix_all": ["backbone.model."],
-    },
-    # KIE SER_RE
-    "VI-LayoutXLM-RE": {
-        "rename": [],
-        "transpose": [
-            re.compile(r"encoder.layer\.(\d+)\..*\.weight"),
-            re.compile(r"visual_proj.weight"),
-            re.compile(r"extractor\.ffnn_(head|tail)\.(\d+)\.weight"),
-            re.compile(r"extractor\.rel_classifier.linear\.weight"),
-        ],
-        "filter": [],
-        "prefix_all": ["backbone.model."],
-    }
-}
-
 
 class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
 
@@ -237,6 +72,16 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
         :return:
         """
         pattern = self.get_model_match_pattern(model_name=model_name, name="filter")
+        return pattern
+
+    def get_model_add_pattern(self, model_name):
+        """
+        获取不同模型的 add list
+
+        :param model_name:
+        :return:
+        """
+        pattern = self.get_model_match_pattern(model_name=model_name, name="add")
         return pattern
 
     def get_model_prefix_all_pattern(self, model_name):
@@ -501,6 +346,30 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
 
         return new_key
 
+    def yolov8_replace(self, model_name, key=None):
+        """
+        检测是否需要转换 stage{}_simsppf
+            re.compile(r"(backbone.layers\d+)\.(stage\d+)\.(.*)")
+            backbone.layers4.stage1.elan_layer.conv1.conv.weight ->backbone.layers4_stage1_elan_layer.conv1.conv.weight
+            backbone.layers2.stage1.c2f_layer.conv1.conv.weight ->  backbone.layers2_stage1_c2f_layer.conv1.conv.weight
+        :param model_name:
+        :return:
+        """
+        pattern_list = self.get_model_class_pattern(model_name)
+        if key is None or len(key) == 0:
+            return key
+
+        new_key = key
+
+        res_0 = MatchUtils.match_pattern_extract(key, pattern=pattern_list[0])
+        if len(res_0) > 0:
+            match_res = res_0[0]
+            key1 = match_res[0]
+            key2 = match_res[1]
+            key3 = match_res[2]
+            new_key = f"{key1}_{key2}_{key3}"
+
+        return new_key
 
     def ocr_db_replace(self, model_name, key=None):
         """
@@ -568,7 +437,7 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
         if self.check_need_csp_darknet_replace(model_name=model_name, key=key):
             key = self.csp_darknet_replace(key)
 
-        # yolov3 , DB, (OCR) CRNN (OCR) , yolov5, yolov6, yolov7
+        # yolov3 , DB, (OCR) CRNN (OCR) , yolov5, yolov6, yolov7, yolov8
         if MatchUtils.match_pattern_list_flag(texts=key, pattern_list=self.get_model_class_pattern(model_name)):
             key = self.do_model_layer_name_replace(model_name=model_name, key=key)
 
@@ -586,18 +455,20 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
 
         if model_class in ["yolov3"]:
             key = self.yolov3_replace(model_name=model_name, key=key)
-        if model_class in ["DB"]:
+        elif model_class in ["DB"]:
             key = self.ocr_db_replace(model_name=model_name, key=key)
-        if model_class in ["CRNN"]:
+        elif model_class in ["CRNN"]:
             key = self.ocr_crnn_replace(model_name=model_name, key=key)
-        if model_class in ["yolov5", "yolov5p6"]:
+        elif model_class in ["yolov5", "yolov5p6"]:
             key = self.yolov5_replace(model_name=model_name, key=key)
-        if model_class in ["yolov6"]:
+        elif model_class in ["yolov6"]:
             key = self.yolov6_replace(model_name=model_name, key=key)
-        if model_class in ["yolov7", "yolov7p6"]:
+        elif model_class in ["yolov7", "yolov7p6"]:
             key = self.yolov7_replace(model_name=model_name, key=key)
-        if model_class in ["rtmdet"]:
+        elif model_class in ["rtmdet"]:
             key = self.rtmdet_replace(model_name=model_name, key=key)
+        elif model_class in ["yolov8", "yolov8p6"]:
+            key = self.yolov8_replace(model_name=model_name, key=key)
 
         return key
 
@@ -733,6 +604,14 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
             prefix_new_key = f"{prefix_all}{new_key}"
             save_pytorch_state_dict[prefix_new_key] = v
 
+        # 添加其他
+        model_class = self.get_model_class(model_name)
+        model_add_pattern = self.get_model_add_pattern(model_name=model_class)
+        if len(model_add_pattern) > 0:
+            if model_class in ["yolov8","yolov8p6"]:
+                save_pytorch_state_dict[model_add_pattern[0]] = torch.tensor([1.0])
+
+
         if output_dir is not None and str(output_dir).rfind(".") > -1:
             save_model_path = output_dir
         else:
@@ -803,13 +682,15 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
         if output_dir is None:
             model_path = FileUtils.get_dir_file_name(in_model_dir)
             # paddlenlp model
-            if str(in_model_dir).find(".paddlenlp") > -1 or \
-                    (model_name is not None and str(model_name).find("LayoutXLM") > -1):
+            find_flag = self.find_some_name_in(model_name)
+
+            if str(in_model_dir).find(".paddlenlp") > -1 or (model_name is not None and find_flag):
                 output_model_name = f"pytorch_model.bin"
                 FileUtils.copy_file_rename(f"{model_path}/model_config.json", f"{model_path}/config.json")
             else:
                 output_model_name = f"{model_name}.pth"
             output_dir = f"{model_path}/{output_model_name}"
+
 
         if filter_param_name is None:
             filter_param_name = self.get_filter_param_name(model_name=model_name)
@@ -826,6 +707,21 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
                                                                             model_name=model_name)
 
         return save_model_path, paddle_model_show_params
+
+    def find_some_name_in(self, model_name):
+        """
+        查找部分存在
+
+        :param model_name:
+        :return:
+        """
+        need_rename_list = ["LayoutXLM", "Ernie"]
+        find_flag = False
+        for name in need_rename_list:
+            if str(model_name).find(name) > -1:
+                find_flag = True
+                break
+        return find_flag
 
 
 def demo_convert():

@@ -160,7 +160,7 @@ class DetectionRunInfer(object):
         # config_name = "rtmdet_s_300e_coco.yml"
 
         # yolov8
-        config_name = f"yolov8_n_300e_coco.yml"
+        config_name = f"yolov8_n_500e_coco.yml"
 
         # run_arg = DetectionInferUtils.init_args()
         config_name = config_name if not config_name.endswith(".yml") else config_name[:-4]
@@ -265,5 +265,5 @@ def run_picodet_coco_batch():
 
 
 if __name__ == '__main__':
-    demo_run_detection_infer()
-    # run_picodet_coco_batch()
+    # demo_run_detection_infer()
+    run_picodet_coco_batch()
