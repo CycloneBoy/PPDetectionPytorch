@@ -85,7 +85,7 @@ class PCBPyramid(nn.Module):
             pyramid_conv_list.append(
                 nn.Sequential(
                     nn.Conv2d(input_ch, num_conv_out_channels, 1),
-                    nn.BatchNorm2D(num_conv_out_channels), nn.ReLU()))
+                    nn.BatchNorm2d(num_conv_out_channels), nn.ReLU()))
 
         idx_levels = 0
         for idx_branches in range(self.num_branches):

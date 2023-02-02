@@ -19,8 +19,6 @@ from __future__ import print_function
 import torch.nn as nn
 import torch.nn.functional as F
 
-# from paddle.regularizer import L2Decay
-# from paddle.nn.initializer import KaimingNormal
 from ppdettorch.core.workspace import register, serializable
 from numbers import Integral
 from ..shape_spec import ShapeSpec
@@ -51,17 +49,10 @@ class ConvBNLayer(nn.Module):
             stride=stride,
             padding=padding,
             groups=num_groups,
-            weight_attr=ParamAttr(
-                learning_rate=conv_lr,
-                initializer=KaimingNormal(),
-                regularizer=L2Decay(conv_decay)),
-            bias_attr=False)
+            bias=False)
 
-        param_attr = ParamAttr(regularizer=L2Decay(norm_decay))
-        bias_attr = ParamAttr(regularizer=L2Decay(norm_decay))
         if norm_type in ['sync_bn', 'bn']:
-            self._batch_norm = nn.BatchNorm2D(
-                out_channels, weight_attr=param_attr, bias_attr=bias_attr)
+            self._batch_norm = nn.BatchNorm2d(out_channels, track_running_stats=True)
 
     def forward(self, x):
         x = self._conv(x)
@@ -204,153 +195,144 @@ class MobileNet(nn.Module):
             name="conv1")
 
         self.dwsl = []
-        dws21 = self.add_sublayer(
-            "conv2_1",
-            sublayer=DepthwiseSeparable(
-                in_channels=int(32 * scale),
-                out_channels1=32,
-                out_channels2=64,
-                num_groups=32,
-                stride=1,
-                scale=scale,
-                conv_lr=conv_learning_rate,
-                conv_decay=conv_decay,
-                norm_decay=norm_decay,
-                norm_type=norm_type,
-                name="conv2_1"))
+        dws21 = DepthwiseSeparable(
+            in_channels=int(32 * scale),
+            out_channels1=32,
+            out_channels2=64,
+            num_groups=32,
+            stride=1,
+            scale=scale,
+            conv_lr=conv_learning_rate,
+            conv_decay=conv_decay,
+            norm_decay=norm_decay,
+            norm_type=norm_type,
+            name="conv2_1")
+        self.add_module("conv2_1", dws21)
         self.dwsl.append(dws21)
         self._update_out_channels(int(64 * scale), len(self.dwsl), feature_maps)
-        dws22 = self.add_sublayer(
-            "conv2_2",
-            sublayer=DepthwiseSeparable(
-                in_channels=int(64 * scale),
-                out_channels1=64,
-                out_channels2=128,
-                num_groups=64,
-                stride=2,
-                scale=scale,
-                conv_lr=conv_learning_rate,
-                conv_decay=conv_decay,
-                norm_decay=norm_decay,
-                norm_type=norm_type,
-                name="conv2_2"))
+        dws22 = DepthwiseSeparable(
+            in_channels=int(64 * scale),
+            out_channels1=64,
+            out_channels2=128,
+            num_groups=64,
+            stride=2,
+            scale=scale,
+            conv_lr=conv_learning_rate,
+            conv_decay=conv_decay,
+            norm_decay=norm_decay,
+            norm_type=norm_type,
+            name="conv2_2")
+        self.add_module("conv2_2", dws22)
         self.dwsl.append(dws22)
         self._update_out_channels(int(128 * scale), len(self.dwsl), feature_maps)
         # 1/4
-        dws31 = self.add_sublayer(
-            "conv3_1",
-            sublayer=DepthwiseSeparable(
-                in_channels=int(128 * scale),
-                out_channels1=128,
-                out_channels2=128,
-                num_groups=128,
-                stride=1,
-                scale=scale,
-                conv_lr=conv_learning_rate,
-                conv_decay=conv_decay,
-                norm_decay=norm_decay,
-                norm_type=norm_type,
-                name="conv3_1"))
+        dws31 = DepthwiseSeparable(
+            in_channels=int(128 * scale),
+            out_channels1=128,
+            out_channels2=128,
+            num_groups=128,
+            stride=1,
+            scale=scale,
+            conv_lr=conv_learning_rate,
+            conv_decay=conv_decay,
+            norm_decay=norm_decay,
+            norm_type=norm_type,
+            name="conv3_1")
+        self.add_module("conv3_1", dws31)
         self.dwsl.append(dws31)
         self._update_out_channels(int(128 * scale), len(self.dwsl), feature_maps)
-        dws32 = self.add_sublayer(
-            "conv3_2",
-            sublayer=DepthwiseSeparable(
-                in_channels=int(128 * scale),
-                out_channels1=128,
-                out_channels2=256,
-                num_groups=128,
-                stride=2,
-                scale=scale,
-                conv_lr=conv_learning_rate,
-                conv_decay=conv_decay,
-                norm_decay=norm_decay,
-                norm_type=norm_type,
-                name="conv3_2"))
+        dws32 = DepthwiseSeparable(
+            in_channels=int(128 * scale),
+            out_channels1=128,
+            out_channels2=256,
+            num_groups=128,
+            stride=2,
+            scale=scale,
+            conv_lr=conv_learning_rate,
+            conv_decay=conv_decay,
+            norm_decay=norm_decay,
+            norm_type=norm_type,
+            name="conv3_2")
+        self.add_module("conv3_2", dws32)
         self.dwsl.append(dws32)
         self._update_out_channels(int(256 * scale), len(self.dwsl), feature_maps)
         # 1/8
-        dws41 = self.add_sublayer(
-            "conv4_1",
-            sublayer=DepthwiseSeparable(
-                in_channels=int(256 * scale),
-                out_channels1=256,
-                out_channels2=256,
-                num_groups=256,
-                stride=1,
-                scale=scale,
-                conv_lr=conv_learning_rate,
-                conv_decay=conv_decay,
-                norm_decay=norm_decay,
-                norm_type=norm_type,
-                name="conv4_1"))
+        dws41 = DepthwiseSeparable(
+            in_channels=int(256 * scale),
+            out_channels1=256,
+            out_channels2=256,
+            num_groups=256,
+            stride=1,
+            scale=scale,
+            conv_lr=conv_learning_rate,
+            conv_decay=conv_decay,
+            norm_decay=norm_decay,
+            norm_type=norm_type,
+            name="conv4_1")
+        self.add_module("conv4_1", dws41)
         self.dwsl.append(dws41)
         self._update_out_channels(int(256 * scale), len(self.dwsl), feature_maps)
-        dws42 = self.add_sublayer(
-            "conv4_2",
-            sublayer=DepthwiseSeparable(
-                in_channels=int(256 * scale),
-                out_channels1=256,
-                out_channels2=512,
-                num_groups=256,
-                stride=2,
-                scale=scale,
-                conv_lr=conv_learning_rate,
-                conv_decay=conv_decay,
-                norm_decay=norm_decay,
-                norm_type=norm_type,
-                name="conv4_2"))
+        dws42 = DepthwiseSeparable(
+            in_channels=int(256 * scale),
+            out_channels1=256,
+            out_channels2=512,
+            num_groups=256,
+            stride=2,
+            scale=scale,
+            conv_lr=conv_learning_rate,
+            conv_decay=conv_decay,
+            norm_decay=norm_decay,
+            norm_type=norm_type,
+            name="conv4_2")
+        self.add_module("conv4_2", dws42)
         self.dwsl.append(dws42)
         self._update_out_channels(int(512 * scale), len(self.dwsl), feature_maps)
         # 1/16
         for i in range(5):
-            tmp = self.add_sublayer(
-                "conv5_" + str(i + 1),
-                sublayer=DepthwiseSeparable(
-                    in_channels=int(512 * scale),
-                    out_channels1=512,
-                    out_channels2=512,
-                    num_groups=512,
-                    stride=1,
-                    scale=scale,
-                    conv_lr=conv_learning_rate,
-                    conv_decay=conv_decay,
-                    norm_decay=norm_decay,
-                    norm_type=norm_type,
-                    name="conv5_" + str(i + 1)))
-            self.dwsl.append(tmp)
-            self._update_out_channels(int(512 * scale), len(self.dwsl), feature_maps)
-        dws56 = self.add_sublayer(
-            "conv5_6",
-            sublayer=DepthwiseSeparable(
+            tmp = DepthwiseSeparable(
                 in_channels=int(512 * scale),
                 out_channels1=512,
-                out_channels2=1024,
+                out_channels2=512,
                 num_groups=512,
-                stride=2,
-                scale=scale,
-                conv_lr=conv_learning_rate,
-                conv_decay=conv_decay,
-                norm_decay=norm_decay,
-                norm_type=norm_type,
-                name="conv5_6"))
-        self.dwsl.append(dws56)
-        self._update_out_channels(int(1024 * scale), len(self.dwsl), feature_maps)
-        # 1/32
-        dws6 = self.add_sublayer(
-            "conv6",
-            sublayer=DepthwiseSeparable(
-                in_channels=int(1024 * scale),
-                out_channels1=1024,
-                out_channels2=1024,
-                num_groups=1024,
                 stride=1,
                 scale=scale,
                 conv_lr=conv_learning_rate,
                 conv_decay=conv_decay,
                 norm_decay=norm_decay,
                 norm_type=norm_type,
-                name="conv6"))
+                name="conv5_" + str(i + 1))
+            self.add_module("conv5_" + str(i + 1), tmp)
+            self.dwsl.append(tmp)
+            self._update_out_channels(int(512 * scale), len(self.dwsl), feature_maps)
+        dws56 = DepthwiseSeparable(
+            in_channels=int(512 * scale),
+            out_channels1=512,
+            out_channels2=1024,
+            num_groups=512,
+            stride=2,
+            scale=scale,
+            conv_lr=conv_learning_rate,
+            conv_decay=conv_decay,
+            norm_decay=norm_decay,
+            norm_type=norm_type,
+            name="conv5_6")
+        self.add_module("conv5_6", dws56)
+        self.dwsl.append(dws56)
+        self._update_out_channels(int(1024 * scale), len(self.dwsl), feature_maps)
+        # 1/32
+        dws6 = DepthwiseSeparable(
+            in_channels=int(1024 * scale),
+            out_channels1=1024,
+            out_channels2=1024,
+            num_groups=1024,
+            stride=1,
+            scale=scale,
+            conv_lr=conv_learning_rate,
+            conv_decay=conv_decay,
+            norm_decay=norm_decay,
+            norm_type=norm_type,
+            name="conv6")
+        self.add_module("conv6", dws6)
         self.dwsl.append(dws6)
         self._update_out_channels(int(1024 * scale), len(self.dwsl), feature_maps)
 
@@ -358,17 +340,16 @@ class MobileNet(nn.Module):
             self.extra_blocks = []
             for i, block_filter in enumerate(self.extra_block_filters):
                 in_c = 1024 if i == 0 else self.extra_block_filters[i - 1][1]
-                conv_extra = self.add_sublayer(
-                    "conv7_" + str(i + 1),
-                    sublayer=ExtraBlock(
-                        in_c,
-                        block_filter[0],
-                        block_filter[1],
-                        conv_lr=conv_learning_rate,
-                        conv_decay=conv_decay,
-                        norm_decay=norm_decay,
-                        norm_type=norm_type,
-                        name="conv7_" + str(i + 1)))
+                conv_extra = ExtraBlock(
+                    in_c,
+                    block_filter[0],
+                    block_filter[1],
+                    conv_lr=conv_learning_rate,
+                    conv_decay=conv_decay,
+                    norm_decay=norm_decay,
+                    norm_type=norm_type,
+                    name="conv7_" + str(i + 1))
+                self.add_module("conv7_" + str(i + 1), conv_extra)
                 self.extra_blocks.append(conv_extra)
                 self._update_out_channels(
                     block_filter[1],

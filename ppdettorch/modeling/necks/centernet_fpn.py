@@ -51,7 +51,7 @@ class BasicConv(nn.Module):
             dilation=dilation,
             groups=groups,
             bias_attr=bias_attr)
-        self.bn = nn.BatchNorm2D(
+        self.bn = nn.BatchNorm2d(
             out_planes,
             epsilon=1e-5,
             momentum=0.01,

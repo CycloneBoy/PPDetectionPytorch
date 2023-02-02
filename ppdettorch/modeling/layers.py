@@ -720,8 +720,7 @@ class SSDBox(object):
             output_boxes *= im_shape
         else:
             output_boxes[..., -2:] -= 1.0
-        output_scores = F.softmax(torch.concat(
-            scores, dim=1)).transpose([0, 2, 1])
+        output_scores = F.softmax(torch.concat(scores, dim=1)).permute(0, 2, 1)
 
         return output_boxes, output_scores
 

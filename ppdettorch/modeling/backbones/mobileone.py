@@ -102,12 +102,12 @@ class MobileOneBlock(nn.Module):
             freeze_norm=freeze_norm,
             initializer=initializer,
             skip_quant=skip_quant)
-        self.rbr_identity_st1 = nn.BatchNorm2D(
+        self.rbr_identity_st1 = nn.BatchNorm2d(
             num_features=ch_in,
             weight_attr=ParamAttr(regularizer=L2Decay(0.0)),
             bias_attr=ParamAttr(regularizer=L2Decay(
                 0.0))) if ch_in == ch_out and self.stride == 1 else None
-        self.rbr_identity_st2 = nn.BatchNorm2D(
+        self.rbr_identity_st2 = nn.BatchNorm2d(
             num_features=ch_out,
             weight_attr=ParamAttr(regularizer=L2Decay(0.0)),
             bias_attr=ParamAttr(regularizer=L2Decay(

@@ -18,15 +18,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.ops import nms
 
-# from torch.regularizer import L2Decay
+from torch import Tensor
 
-# try:
-#     import torch._legacy_C_ops as C_ops
-# except:
-#     import torch._C_ops as C_ops
-
-# from paddle import in_dynamic_mode
-# from torch.common_ops_import import Variable, LayerHelper, check_variable_and_dtype, check_type, check_dtype
+from ppdettorch.modeling.bbox_utils import ssd_prior_box_np
 
 __all__ = [
     'prior_box',
@@ -41,8 +35,6 @@ __all__ = [
     'swish',
     'identity',
 ]
-
-from torch import Tensor
 
 
 def identity(x):
@@ -108,7 +100,7 @@ def batch_norm(ch,
         trainable=False if freeze_norm else True)
 
     if norm_type in ['sync_bn', 'bn']:
-        norm_layer = nn.BatchNorm2D(
+        norm_layer = nn.BatchNorm2d(
             ch,
             weight_attr=weight_attr,
             bias_attr=bias_attr,
@@ -316,7 +308,7 @@ def prior_box(input,
         .. code-block:: python
 
         import torch
-        from ppdettorch.modeling import ops
+        from finanicial_ner.model.detection.modeling import ops
 
         torch.enable_static()
         input = torch.static.data(name="input", shape=[None,3,6,9])
@@ -328,10 +320,6 @@ def prior_box(input,
                     clip=True,
                     flip=True)
     """
-    helper = LayerHelper("prior_box", **locals())
-    dtype = helper.input_dtype()
-    check_variable_and_dtype(
-        input, 'input', ['uint8', 'int8', 'float32', 'float64'], 'prior_box')
 
     def _is_list_or_tuple_(data):
         return (isinstance(data, list) or isinstance(data, tuple))
@@ -354,43 +342,29 @@ def prior_box(input,
             max_sizes = [max_sizes]
         cur_max_sizes = max_sizes
 
-    if in_dynamic_mode():
-        attrs = ('min_sizes', min_sizes, 'aspect_ratios', aspect_ratios,
-                 'variances', variance, 'flip', flip, 'clip', clip, 'step_w',
-                 steps[0], 'step_h', steps[1], 'offset', offset,
-                 'min_max_aspect_ratios_order', min_max_aspect_ratios_order)
-        if cur_max_sizes is not None:
-            attrs += ('max_sizes', cur_max_sizes)
-        box, var = C_ops.prior_box(input, image, *attrs)
-        return box, var
-    else:
-        attrs = {
-            'min_sizes': min_sizes,
-            'aspect_ratios': aspect_ratios,
-            'variances': variance,
-            'flip': flip,
-            'clip': clip,
-            'step_w': steps[0],
-            'step_h': steps[1],
-            'offset': offset,
-            'min_max_aspect_ratios_order': min_max_aspect_ratios_order
-        }
-
-        if cur_max_sizes is not None:
-            attrs['max_sizes'] = cur_max_sizes
-
-        box = helper.create_variable_for_type_inference(dtype)
-        var = helper.create_variable_for_type_inference(dtype)
-        helper.append_op(
-            type="prior_box",
-            inputs={"Input": input,
-                    "Image": image},
-            outputs={"Boxes": box,
-                     "Variances": var},
-            attrs=attrs, )
-        box.stop_gradient = True
-        var.stop_gradient = True
-        return box, var
+    attrs = ('min_sizes', min_sizes, 'aspect_ratios', aspect_ratios,
+             'variances', variance, 'flip', flip, 'clip', clip, 'step_w',
+             steps[0], 'step_h', steps[1], 'offset', offset,
+             'min_max_aspect_ratios_order', min_max_aspect_ratios_order)
+    if cur_max_sizes is not None:
+        attrs += ('max_sizes', cur_max_sizes)
+    # box, var = C_ops.prior_box(input, image, *attrs)
+    box, var = ssd_prior_box_np(input,
+                                image,
+                                min_sizes=min_sizes,
+                                aspect_ratios=aspect_ratios,
+                                variances=variance,
+                                max_sizes=max_sizes,
+                                flip=flip,
+                                clip=clip,
+                                step_w=steps[0],
+                                step_h=steps[1],
+                                offset=offset,
+                                min_max_aspect_ratios_order=min_max_aspect_ratios_order, )
+    run_device = input.device
+    box_ret = torch.tensor(box, device=run_device)
+    var_ret = torch.tensor(var, device=run_device)
+    return box_ret, var_ret
 
 
 def batched_nms_mmdet(boxes: Tensor,

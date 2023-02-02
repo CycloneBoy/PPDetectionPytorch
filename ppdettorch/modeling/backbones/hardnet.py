@@ -33,7 +33,7 @@ def ConvLayer(in_channels,
             stride=stride,
             padding=kernel_size // 2,
             groups=1,
-            bias_attr=bias_attr)), ('norm', nn.BatchNorm2D(out_channels)),
+            bias_attr=bias_attr)), ('norm', nn.BatchNorm2d(out_channels)),
         ('relu', nn.ReLU6()))
     return layer
 
@@ -51,7 +51,7 @@ def DWConvLayer(in_channels,
             stride=stride,
             padding=1,
             groups=out_channels,
-            bias_attr=bias_attr)), ('norm', nn.BatchNorm2D(out_channels)))
+            bias_attr=bias_attr)), ('norm', nn.BatchNorm2d(out_channels)))
     return layer
 
 

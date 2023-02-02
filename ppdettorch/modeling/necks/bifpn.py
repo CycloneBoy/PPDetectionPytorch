@@ -53,7 +53,7 @@ class SeparableConvLayer(nn.Module):
 
         # norm type
         if self.norm_type in ['bn', 'sync_bn']:
-            self.norm = nn.BatchNorm2D(self.out_channels)
+            self.norm = nn.BatchNorm2d(self.out_channels)
         elif self.norm_type == 'gn':
             self.norm = nn.GroupNorm(
                 num_groups=self.norm_groups, num_channels=self.out_channels)

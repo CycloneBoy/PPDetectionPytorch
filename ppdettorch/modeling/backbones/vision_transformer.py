@@ -465,7 +465,7 @@ class VisionTransformer(nn.Module):
             self.fpn1 = nn.Sequential(
                 nn.Conv2DTranspose(
                     embed_dim, embed_dim, kernel_size=2, stride=2),
-                nn.BatchNorm2D(embed_dim),
+                nn.BatchNorm2d(embed_dim),
                 nn.GELU(),
                 nn.Conv2DTranspose(
                     embed_dim, embed_dim, kernel_size=2, stride=2), )

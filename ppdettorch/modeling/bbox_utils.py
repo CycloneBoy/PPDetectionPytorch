@@ -850,3 +850,181 @@ def yolo_box_pytorch(x,
                 pred_box[i, :, 3], (-torch.inf), (img_size[(i, 0)] - 1)
             )
     return (pred_box, pred_score.view(n, -1, class_num))
+
+
+def ssd_prior_box_np(
+        input,
+        image,
+        min_sizes,
+        aspect_ratios=[1.0],
+        variances=[0.1, 0.1, 0.2, 0.2],
+        max_sizes=None,
+        flip=False,
+        clip=False,
+        step_w=0,
+        step_h=0,
+        offset=0.5,
+        min_max_aspect_ratios_order=False,
+        name=None,
+):
+    r"""
+
+    This op generates prior boxes for SSD(Single Shot MultiBox Detector) algorithm.
+
+    Each position of the input produce N prior boxes, N is determined by
+    the count of min_sizes, max_sizes and aspect_ratios, The size of the
+    box is in range(min_size, max_size) interval, which is generated in
+    sequence according to the aspect_ratios.
+
+    Args:
+       input (Tensor): 4-D tensor(NCHW), the data type should be float32 or float64.
+       image (Tensor): 4-D tensor(NCHW), the input image data of PriorBoxOp,
+            the data type should be float32 or float64.
+       min_sizes (list|tuple|float): the min sizes of generated prior boxes.
+       max_sizes (list|tuple|None, optional): the max sizes of generated prior boxes.
+            Default: None, means [] and will not be used.
+       aspect_ratios (list|tuple|float, optional): the aspect ratios of generated
+            prior boxes. Default: [1.0].
+       variances (list|tuple, optional): the variances to be encoded in prior boxes.
+            Default:[0.1, 0.1, 0.2, 0.2].
+       flip (bool): Whether to flip aspect ratios. Default:False.
+       clip (bool): Whether to clip out-of-boundary boxes. Default: False.
+       steps (list|tuple, optional): Prior boxes steps across width and height, If
+            steps[0] equals to 0.0 or steps[1] equals to 0.0, the prior boxes steps across
+            height or weight of the input will be automatically calculated.
+            Default: [0., 0.]
+       offset (float, optional)): Prior boxes center offset. Default: 0.5
+       min_max_aspect_ratios_order (bool, optional): If set True, the output prior box is
+            in order of [min, max, aspect_ratios], which is consistent with
+            Caffe. Please note, this order affects the weights order of
+            convolution layer followed by and does not affect the final
+            detection results. Default: False.
+       name (str, optional): The default value is None. Normally there is no need for
+            user to set this property. For more information, please refer to :ref:`api_guide_Name`
+
+    Returns:
+        Tensor: the output prior boxes and the expanded variances of PriorBox.
+            The prior boxes is a 4-D tensor, the layout is [H, W, num_priors, 4],
+            num_priors is the total box count of each position of input.
+            The expanded variances is a 4-D tensor, same shape as the prior boxes.
+
+    Examples:
+        .. code-block:: python
+
+            import paddle
+
+            input = paddle.rand((1, 3, 6, 9), dtype=paddle.float32)
+            image = paddle.rand((1, 3, 9, 12), dtype=paddle.float32)
+
+            box, var = paddle.vision.ops.prior_box(
+                input=input,
+                image=image,
+                min_sizes=[2.0, 4.0],
+                clip=True,
+                flip=True)
+
+    """
+
+    _, _, layer_h, layer_w = input.shape
+    _, _, image_h, image_w = image.shape
+
+    epsilon = 1e-6
+    real_aspect_ratios = [1]
+    for ar in aspect_ratios:
+        already_exist = False
+        for exist_ar in real_aspect_ratios:
+            if abs(ar - exist_ar) < epsilon:
+                already_exist = True
+                break
+        if not already_exist:
+            real_aspect_ratios.append(ar)
+            if flip:
+                real_aspect_ratios.append(1.0 / ar)
+
+    num_priors = len(real_aspect_ratios) * len(min_sizes)
+    if max_sizes is None:
+        max_sizes = []
+
+    if len(max_sizes) > 0:
+        num_priors += len(max_sizes)
+
+    out_dim = (layer_h, layer_w, num_priors, 4)
+    out_boxes = np.zeros(out_dim).astype('float32')
+
+    for h in range(layer_h):
+        for w in range(layer_w):
+            c_x = (w + offset) * step_w
+            c_y = (h + offset) * step_h
+            idx = 0
+            for s in range(len(min_sizes)):
+                min_size = min_sizes[s]
+                if not min_max_aspect_ratios_order:
+                    # rest of priors
+                    for r in range(len(real_aspect_ratios)):
+                        ar = real_aspect_ratios[r]
+                        c_w = min_size * math.sqrt(ar) / 2
+                        c_h = (min_size / math.sqrt(ar)) / 2
+                        out_boxes[h, w, idx, :] = [
+                            (c_x - c_w) / image_w,
+                            (c_y - c_h) / image_h,
+                            (c_x + c_w) / image_w,
+                            (c_y + c_h) / image_h,
+                        ]
+                        idx += 1
+
+                    if len(max_sizes) > 0:
+                        max_size = max_sizes[s]
+                        # second prior: aspect_ratio = 1,
+                        c_w = c_h = math.sqrt(min_size * max_size) / 2
+                        out_boxes[h, w, idx, :] = [
+                            (c_x - c_w) / image_w,
+                            (c_y - c_h) / image_h,
+                            (c_x + c_w) / image_w,
+                            (c_y + c_h) / image_h,
+                        ]
+                        idx += 1
+                else:
+                    c_w = c_h = min_size / 2.0
+                    out_boxes[h, w, idx, :] = [
+                        (c_x - c_w) / image_w,
+                        (c_y - c_h) / image_h,
+                        (c_x + c_w) / image_w,
+                        (c_y + c_h) / image_h,
+                    ]
+                    idx += 1
+                    if len(max_sizes) > 0:
+                        max_size = max_sizes[s]
+                        # second prior: aspect_ratio = 1,
+                        c_w = c_h = math.sqrt(min_size * max_size) / 2
+                        out_boxes[h, w, idx, :] = [
+                            (c_x - c_w) / image_w,
+                            (c_y - c_h) / image_h,
+                            (c_x + c_w) / image_w,
+                            (c_y + c_h) / image_h,
+                        ]
+                        idx += 1
+
+                    # rest of priors
+                    for r in range(len(real_aspect_ratios)):
+                        ar = real_aspect_ratios[r]
+                        if abs(ar - 1.0) < 1e-6:
+                            continue
+                        c_w = min_size * math.sqrt(ar) / 2
+                        c_h = (min_size / math.sqrt(ar)) / 2
+                        out_boxes[h, w, idx, :] = [
+                            (c_x - c_w) / image_w,
+                            (c_y - c_h) / image_h,
+                            (c_x + c_w) / image_w,
+                            (c_y + c_h) / image_h,
+                        ]
+                        idx += 1
+
+    # clip the prior's coordidate such that it is within[0, 1]
+    if clip:
+        out_boxes = np.clip(out_boxes, 0.0, 1.0)
+    # set the variance.
+    out_var = np.tile(
+        variances, (layer_h, layer_w, num_priors, 1)
+    )
+
+    return out_boxes, out_var

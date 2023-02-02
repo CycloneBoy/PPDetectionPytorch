@@ -16,8 +16,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ppdettorch.core.workspace import register
-# from paddle.regularizer import L2Decay
-
 
 from ..layers import AnchorGeneratorSSD
 from ..cls_utils import _get_class_default_kwargs
@@ -38,13 +36,9 @@ class SepConvLayer(nn.Module):
             stride=1,
             padding=padding,
             groups=in_channels,
-            weight_attr=ParamAttr(regularizer=L2Decay(conv_decay)),
-            bias_attr=False)
+            bias=False)
 
-        self.bn = nn.BatchNorm2D(
-            in_channels,
-            weight_attr=ParamAttr(regularizer=L2Decay(0.)),
-            bias_attr=ParamAttr(regularizer=L2Decay(0.)))
+        self.bn = nn.BatchNorm2d(in_channels, track_running_stats=True)
 
         self.pw_conv = nn.Conv2d(
             in_channels=in_channels,
@@ -52,8 +46,7 @@ class SepConvLayer(nn.Module):
             kernel_size=1,
             stride=1,
             padding=0,
-            weight_attr=ParamAttr(regularizer=L2Decay(conv_decay)),
-            bias_attr=False)
+            bias=False)
 
     def forward(self, x):
         x = self.dw_conv(x)
@@ -70,7 +63,7 @@ class SSDExtraHead(nn.Module):
                  strides=(2, 2, 2, 1, 1),
                  paddings=(1, 1, 1, 0, 0)):
         super(SSDExtraHead, self).__init__()
-        self.convs = nn.LayerList()
+        self.convs = nn.ModuleList()
         for out_channel, stride, padding in zip(out_channels, strides,
                                                 paddings):
             self.convs.append(
@@ -142,42 +135,38 @@ class SSDHead(nn.Module):
         for i, num_prior in enumerate(self.num_priors):
             box_conv_name = "boxes{}".format(i)
             if not use_sepconv:
-                box_conv = self.add_sublayer(
-                    box_conv_name,
-                    nn.Conv2d(
-                        in_channels=self.in_channels[i],
-                        out_channels=num_prior * 4,
-                        kernel_size=kernel_size,
-                        padding=padding))
+                box_conv = nn.Conv2d(
+                    in_channels=self.in_channels[i],
+                    out_channels=num_prior * 4,
+                    kernel_size=kernel_size,
+                    padding=padding)
+                self.add_module(box_conv_name, box_conv)
             else:
-                box_conv = self.add_sublayer(
-                    box_conv_name,
-                    SepConvLayer(
-                        in_channels=self.in_channels[i],
-                        out_channels=num_prior * 4,
-                        kernel_size=kernel_size,
-                        padding=padding,
-                        conv_decay=conv_decay))
+                box_conv = SepConvLayer(
+                    in_channels=self.in_channels[i],
+                    out_channels=num_prior * 4,
+                    kernel_size=kernel_size,
+                    padding=padding,
+                    conv_decay=conv_decay)
+                self.add_module(box_conv_name, box_conv)
             self.box_convs.append(box_conv)
 
             score_conv_name = "scores{}".format(i)
             if not use_sepconv:
-                score_conv = self.add_sublayer(
-                    score_conv_name,
-                    nn.Conv2d(
-                        in_channels=self.in_channels[i],
-                        out_channels=num_prior * self.num_classes,
-                        kernel_size=kernel_size,
-                        padding=padding))
+                score_conv = nn.Conv2d(
+                    in_channels=self.in_channels[i],
+                    out_channels=num_prior * self.num_classes,
+                    kernel_size=kernel_size,
+                    padding=padding)
+                self.add_module(score_conv_name, score_conv)
             else:
-                score_conv = self.add_sublayer(
-                    score_conv_name,
-                    SepConvLayer(
-                        in_channels=self.in_channels[i],
-                        out_channels=num_prior * self.num_classes,
-                        kernel_size=kernel_size,
-                        padding=padding,
-                        conv_decay=conv_decay))
+                score_conv = SepConvLayer(
+                    in_channels=self.in_channels[i],
+                    out_channels=num_prior * self.num_classes,
+                    kernel_size=kernel_size,
+                    padding=padding,
+                    conv_decay=conv_decay)
+                self.add_module(score_conv_name, score_conv)
             self.score_convs.append(score_conv)
 
     @classmethod
@@ -195,13 +184,13 @@ class SSDHead(nn.Module):
         for feat, box_conv, score_conv in zip(feats, self.box_convs,
                                               self.score_convs):
             box_pred = box_conv(feat)
-            box_pred = paddle.transpose(box_pred, [0, 2, 3, 1])
-            box_pred = paddle.reshape(box_pred, [0, -1, 4])
+            box_pred = box_pred.permute(0, 2, 3, 1)
+            box_pred = box_pred.reshape(box_pred.size(0), -1, 4)
             box_preds.append(box_pred)
 
             cls_score = score_conv(feat)
-            cls_score = paddle.transpose(cls_score, [0, 2, 3, 1])
-            cls_score = paddle.reshape(cls_score, [0, -1, self.num_classes])
+            cls_score = cls_score.permute(0, 2, 3, 1)
+            cls_score = cls_score.reshape(cls_score.size(0), -1, self.num_classes)
             cls_scores.append(cls_score)
 
         prior_boxes = self.anchor_generator(feats, image)
