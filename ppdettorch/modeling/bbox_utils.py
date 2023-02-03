@@ -885,7 +885,7 @@ def ssd_prior_box_np(
             Default: None, means [] and will not be used.
        aspect_ratios (list|tuple|float, optional): the aspect ratios of generated
             prior boxes. Default: [1.0].
-       variances (list|tuple, optional): the variances to be encoded in prior boxes.
+       variance (list|tuple, optional): the variances to be encoded in prior boxes.
             Default:[0.1, 0.1, 0.2, 0.2].
        flip (bool): Whether to flip aspect ratios. Default:False.
        clip (bool): Whether to clip out-of-boundary boxes. Default: False.
@@ -940,6 +940,10 @@ def ssd_prior_box_np(
             real_aspect_ratios.append(ar)
             if flip:
                 real_aspect_ratios.append(1.0 / ar)
+
+    if step_w == 0 or step_h == 0:
+        step_w = image_w / layer_w
+        step_h = image_h / layer_h
 
     num_priors = len(real_aspect_ratios) * len(min_sizes)
     if max_sizes is None:

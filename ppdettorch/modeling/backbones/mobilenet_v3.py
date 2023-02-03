@@ -202,14 +202,15 @@ class ExtraBlockDW(nn.Module):
                  norm_type='bn',
                  norm_decay=0.,
                  freeze_norm=False,
-                 name=None):
+                 name=None,
+                 padding=3):
         super(ExtraBlockDW, self).__init__()
         self.pointwise_conv = ConvBNLayer(
             in_c=in_c,
             out_c=ch_1,
             filter_size=1,
             stride=1,
-            padding='SAME',
+            padding=0,
             act='relu6',
             lr_mult=lr_mult,
             conv_decay=conv_decay,
@@ -222,7 +223,7 @@ class ExtraBlockDW(nn.Module):
             out_c=ch_2,
             filter_size=3,
             stride=stride,
-            padding='SAME',
+            padding=padding,  # TODO: same padding
             num_groups=int(ch_1),
             act='relu6',
             lr_mult=lr_mult,
@@ -236,7 +237,7 @@ class ExtraBlockDW(nn.Module):
             out_c=ch_2,
             filter_size=1,
             stride=1,
-            padding='SAME',
+            padding=0,
             act='relu6',
             lr_mult=lr_mult,
             conv_decay=conv_decay,
@@ -412,7 +413,8 @@ class MobileNetV3(nn.Module):
                                           norm_type=norm_type,
                                           norm_decay=norm_decay,
                                           freeze_norm=freeze_norm,
-                                          name='conv' + str(i + 2))
+                                          name='conv' + str(i + 2),
+                                          padding=3)  # TODO: calc same padding
                 self.add_module("conv" + str(i + 2), module=conv_extra)
                 self.extra_block_list.append(conv_extra)
                 i += 1

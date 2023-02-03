@@ -163,7 +163,10 @@ class DetectionRunInfer(object):
         # config_name = f"yolov8_n_500e_coco.yml"
 
         # ssd
-        config_name = f"ssd_mobilenet_v1_300_120e_voc.yml"
+        # config_name = f"ssd_mobilenet_v1_300_120e_voc.yml"
+        config_name = f"ssd_vgg16_300_240e_voc.yml"
+        # config_name = f"ssdlite_mobilenet_v3_large_320_coco.yml"
+        # config_name = f"ssdlite_mobilenet_v3_small_320_coco.yml"
 
 
         # run_arg = DetectionInferUtils.init_args()
@@ -176,6 +179,8 @@ class DetectionRunInfer(object):
             model_class = "picodet"
         elif "ppyoloe" in config_name:
             model_class = "ppyoloe"
+        elif "ssdlite_" in config_name:
+            model_class = "ssd"
         else:
             config_name_end_index = FileUtils.get_file_name(config_name).find("_")
             model_class = config_name[:config_name_end_index]
@@ -229,13 +234,26 @@ def run_picodet_coco_batch():
     # model_class = "yolov6"
     # model_class = "yolov7"
     # model_class = "rtmdet"
-    model_class = "yolov8"
+    # model_class = "yolov8"
+    model_class = "ssd"
 
     with_application = False
     # with_application = True
 
     # do_transform = False
     do_transform = True
+
+    # 需要跳过执行验证的列表
+    skip_config_name_dict = {
+        "yolov3": [
+            "yolov3_darknet53_original_270e_coco.yml",
+            "yolov3_mobilenet_v1_roadsign.yml"
+        ],
+        "ssd": [
+            "ssd_r34_70e_coco.yml",
+            "ssdlite_ghostnet_320_coco.yml"
+        ]
+    }
 
     # base_dir = f"/home/mqq/shenglei/ocr/PaddleDetection/configs/{model_class}"
     base_dir = f"{Constants.WORK_DIR}/configs/{model_class}"
@@ -249,12 +267,18 @@ def run_picodet_coco_batch():
                                                 end_with=".yml", )
 
     logger.info(f"total: {len(file_name_list)}")
-    skip = 0
+
+    skip_config_name_list = skip_config_name_dict.get(model_class, [])
+    skip = 1
     detection_runner = DetectionRunInfer()
 
     for index, file_name in enumerate(file_name_list):
         if index < skip:
             logger.info(f"跳过已经执行的：{index} - {file_name}")
+            continue
+
+        if f"{FileUtils.get_file_name(file_name)}.yml" in skip_config_name_list:
+            logger.info(f"跳过无需测试的：{index} - {file_name}")
             continue
 
         if "_xpu" in file_name:
@@ -269,5 +293,5 @@ def run_picodet_coco_batch():
 
 
 if __name__ == '__main__':
-    demo_run_detection_infer()
-    # run_picodet_coco_batch()
+    # demo_run_detection_infer()
+    run_picodet_coco_batch()

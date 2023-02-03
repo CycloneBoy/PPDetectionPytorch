@@ -258,21 +258,21 @@ class LiteConv(nn.Module):
             stride=stride,
             groups=in_channels,
             norm_type=norm_type,
-            )
+        )
         conv2 = ConvNormLayer(
             in_channels,
             out_channels,
             filter_size=1,
             stride=stride,
             norm_type=norm_type,
-            )
+        )
         conv3 = ConvNormLayer(
             out_channels,
             out_channels,
             filter_size=1,
             stride=stride,
             norm_type=norm_type,
-            )
+        )
         conv4 = ConvNormLayer(
             out_channels,
             out_channels,
@@ -280,7 +280,7 @@ class LiteConv(nn.Module):
             stride=stride,
             groups=out_channels,
             norm_type=norm_type,
-            )
+        )
         conv_list = [conv1, conv2, conv3, conv4]
         self.lite_conv.add_sublayer('conv1', conv1)
         self.lite_conv.add_sublayer('relu6_1', nn.ReLU6())
@@ -627,6 +627,7 @@ class YOLOBox(object):
 
         return yolo_boxes, yolo_scores
 
+
 class YOLOLayer(nn.Module):
     """Detection layer"""
 
@@ -720,7 +721,7 @@ class SSDBox(object):
             output_boxes *= im_shape
         else:
             output_boxes[..., -2:] -= 1.0
-        output_scores = F.softmax(torch.concat(scores, dim=1)).permute(0, 2, 1)
+        output_scores = F.softmax(torch.concat(scores, dim=1), dim=-1).permute(0, 2, 1)
 
         return output_boxes, output_scores
 

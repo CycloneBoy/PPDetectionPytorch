@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 from torch.nn import Conv2d, MaxPool2d
 from ppdettorch.core.workspace import register, serializable
 from ..shape_spec import ShapeSpec
@@ -34,21 +33,18 @@ class ConvBlock(nn.Module):
             padding=1)
         self.conv_out_list = []
         for i in range(1, groups):
-            conv_out = self.add_sublayer(
-                'conv{}'.format(i),
-                Conv2d(
-                    in_channels=out_channels,
-                    out_channels=out_channels,
-                    kernel_size=3,
-                    stride=1,
-                    padding=1))
+            conv_out = Conv2d(in_channels=out_channels,
+                              out_channels=out_channels,
+                              kernel_size=3,
+                              stride=1,
+                              padding=1)
+            self.add_module('conv{}'.format(i), conv_out)
             self.conv_out_list.append(conv_out)
 
-        self.pool = MaxPool2d(
-            kernel_size=pool_size,
-            stride=pool_stride,
-            padding=pool_padding,
-            ceil_mode=True)
+        self.pool = MaxPool2d(kernel_size=pool_size,
+                              stride=pool_stride,
+                              padding=pool_padding,
+                              ceil_mode=True)
 
     def forward(self, inputs):
         out = self.conv0(inputs)
@@ -95,12 +91,10 @@ class ExtraBlock(nn.Module):
 class L2NormScale(nn.Module):
     def __init__(self, num_channels, scale=1.0):
         super(L2NormScale, self).__init__()
-        self.scale = self.create_parameter(
-            attr=ParamAttr(initializer=paddle.nn.initializer.Constant(scale)),
-            shape=[num_channels])
+        self.scale = nn.Parameter(torch.ones([num_channels]), requires_grad=False)
 
     def forward(self, inputs):
-        out = F.normalize(inputs, axis=1, epsilon=1e-10)
+        out = F.normalize(inputs, dim=1, eps=1e-10)
         # out = self.scale.unsqueeze(0).unsqueeze(2).unsqueeze(3).expand_as(
         #     out) * out
         out = self.scale.unsqueeze(0).unsqueeze(2).unsqueeze(3) * out
@@ -119,7 +113,7 @@ class VGG(nn.Module):
         super(VGG, self).__init__()
 
         assert depth in [16, 19], \
-                "depth as 16/19 supported currently, but got {}".format(depth)
+            "depth as 16/19 supported currently, but got {}".format(depth)
         self.depth = depth
         self.groups = VGG_cfg[depth]
         self.normalizations = normalizations
@@ -159,9 +153,9 @@ class VGG(nn.Module):
         last_channels = 1024
         for i, v in enumerate(self.extra_block_filters):
             assert len(v) == 5, "extra_block_filters size not fix"
-            extra_conv = self.add_sublayer("conv{}".format(6 + i),
-                                           ExtraBlock(last_channels, v[0], v[1],
-                                                      v[2], v[3], v[4]))
+            extra_conv = ExtraBlock(last_channels, v[0], v[1],
+                                    v[2], v[3], v[4])
+            self.add_module("conv{}".format(6 + i), extra_conv)
             last_channels = v[1]
             self.extra_convs.append(extra_conv)
             self._out_channels.append(last_channels)
@@ -169,9 +163,8 @@ class VGG(nn.Module):
         self.norms = []
         for i, n in enumerate(self.normalizations):
             if n != -1:
-                norm = self.add_sublayer("norm{}".format(i),
-                                         L2NormScale(
-                                             self.extra_block_filters[i][1], n))
+                norm = L2NormScale(self.extra_block_filters[i][1], n)
+                self.add_module("norm{}".format(i), norm)
             else:
                 norm = None
             self.norms.append(norm)
