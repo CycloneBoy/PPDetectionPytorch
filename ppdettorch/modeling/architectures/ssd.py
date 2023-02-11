@@ -16,6 +16,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import torch
+import torch.nn.functional as F
+
 from ppdettorch.core.workspace import register, create
 from .meta_arch import BaseArch
 
@@ -75,21 +78,42 @@ class SSD(BaseArch):
                                  self.inputs['gt_class'])
         else:
             preds, anchors = self.ssd_head(body_feats, self.inputs['image'])
+            bbox, bbox_num, nms_keep_idx = self.post_process(
+                preds, anchors, self.inputs['im_shape'],
+                self.inputs['scale_factor'])
 
-            bbox, bbox_num, before_nms_indexes = self.post_process(preds, anchors,
-                                                                   self.inputs['im_shape'],
-                                                                   self.inputs['scale_factor'])
-
-            return bbox, bbox_num
-            return bbox, bbox_num
+            if self.use_extra_data:
+                extra_data = {}  # record the bbox output before nms, such like scores and nms_keep_idx
+                """extra_data:{
+                            'scores': predict scores,
+                            'nms_keep_idx': bbox index before nms,
+                           }
+                           """
+                preds_logits = preds[1]  # [[1xNumBBoxNumClass]]
+                extra_data['scores'] = F.softmax(torch.concat(
+                    preds_logits, dim=1)).permute(0, 2, 1)
+                extra_data['logits'] = torch.concat(
+                    preds_logits, dim=1).permute(0, 2, 1)
+                extra_data['nms_keep_idx'] = nms_keep_idx  # bbox index before nms
+                return bbox, bbox_num, extra_data
+            else:
+                return bbox, bbox_num
 
     def get_loss(self, ):
         return {"loss": self._forward()}
 
     def get_pred(self):
-        bbox_pred, bbox_num = self._forward()
-        output = {
-            "bbox": bbox_pred,
-            "bbox_num": bbox_num,
-        }
+        if self.use_extra_data:
+            bbox_pred, bbox_num, extra_data = self._forward()
+            output = {
+                "bbox": bbox_pred,
+                "bbox_num": bbox_num,
+                "extra_data": extra_data
+            }
+        else:
+            bbox_pred, bbox_num = self._forward()
+            output = {
+                "bbox": bbox_pred,
+                "bbox_num": bbox_num,
+            }
         return output

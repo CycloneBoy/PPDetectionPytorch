@@ -20,7 +20,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# from paddle.nn.initializer import KaimingNormal
 from ppdettorch.core.workspace import register, serializable
 from ..shape_spec import ShapeSpec
 
@@ -54,9 +53,7 @@ class ConvBNLayer(nn.Module):
             stride=stride,
             padding=padding,
             groups=num_groups,
-            weight_attr=ParamAttr(
-                learning_rate=conv_lr, initializer=KaimingNormal()),
-            bias_attr=False)
+            bias=False)
 
         if norm_type in ['bn', 'sync_bn']:
             self._batch_norm = nn.BatchNorm2d(out_channels)
@@ -91,40 +88,38 @@ class BlazeBlock(nn.Module):
         self.use_double_block = double_channels is not None
         self.conv_dw = []
         if use_5x5kernel:
-            self.conv_dw.append(
-                self.add_sublayer(
-                    name + "1_dw",
-                    ConvBNLayer(
-                        in_channels=in_channels,
-                        out_channels=out_channels1,
-                        kernel_size=5,
-                        stride=stride,
-                        padding=2,
-                        num_groups=out_channels1,
-                        name=name + "1_dw")))
+            conv_1 = ConvBNLayer(
+                in_channels=in_channels,
+                out_channels=out_channels1,
+                kernel_size=5,
+                stride=stride,
+                padding=2,
+                num_groups=out_channels1,
+                name=name + "1_dw")
+            self.add_module(name + "1_dw", conv_1)
+            self.conv_dw.append(conv_1)
         else:
-            self.conv_dw.append(
-                self.add_sublayer(
-                    name + "1_dw_1",
-                    ConvBNLayer(
-                        in_channels=in_channels,
-                        out_channels=out_channels1,
-                        kernel_size=3,
-                        stride=1,
-                        padding=1,
-                        num_groups=out_channels1,
-                        name=name + "1_dw_1")))
-            self.conv_dw.append(
-                self.add_sublayer(
-                    name + "1_dw_2",
-                    ConvBNLayer(
-                        in_channels=out_channels1,
-                        out_channels=out_channels1,
-                        kernel_size=3,
-                        stride=stride,
-                        padding=1,
-                        num_groups=out_channels1,
-                        name=name + "1_dw_2")))
+            conv_1 = ConvBNLayer(
+                in_channels=in_channels,
+                out_channels=out_channels1,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                num_groups=out_channels1,
+                name=name + "1_dw_1")
+            self.add_module(name + "1_dw_1", conv_1)
+            self.conv_dw.append(conv_1)
+
+            conv_2 = ConvBNLayer(
+                in_channels=out_channels1,
+                out_channels=out_channels1,
+                kernel_size=3,
+                stride=stride,
+                padding=1,
+                num_groups=out_channels1,
+                name=name + "1_dw_2")
+            self.add_module(name + "1_dw_2", conv_2)
+            self.conv_dw.append(conv_2)
         self.act = act if self.use_double_block else None
         self.conv_pw = ConvBNLayer(
             in_channels=out_channels1,
@@ -137,40 +132,39 @@ class BlazeBlock(nn.Module):
         if self.use_double_block:
             self.conv_dw2 = []
             if use_5x5kernel:
-                self.conv_dw2.append(
-                    self.add_sublayer(
-                        name + "2_dw",
-                        ConvBNLayer(
-                            in_channels=out_channels2,
-                            out_channels=out_channels2,
-                            kernel_size=5,
-                            stride=1,
-                            padding=2,
-                            num_groups=out_channels2,
-                            name=name + "2_dw")))
+                conv_2 = ConvBNLayer(
+                    in_channels=out_channels2,
+                    out_channels=out_channels2,
+                    kernel_size=5,
+                    stride=1,
+                    padding=2,
+                    num_groups=out_channels2,
+                    name=name + "2_dw")
+                self.add_module(name + "2_dw", conv_2)
+                self.conv_dw2.append(conv_2)
             else:
-                self.conv_dw2.append(
-                    self.add_sublayer(
-                        name + "2_dw_1",
-                        ConvBNLayer(
-                            in_channels=out_channels2,
-                            out_channels=out_channels2,
-                            kernel_size=3,
-                            stride=1,
-                            padding=1,
-                            num_groups=out_channels2,
-                            name=name + "1_dw_1")))
-                self.conv_dw2.append(
-                    self.add_sublayer(
-                        name + "2_dw_2",
-                        ConvBNLayer(
-                            in_channels=out_channels2,
-                            out_channels=out_channels2,
-                            kernel_size=3,
-                            stride=1,
-                            padding=1,
-                            num_groups=out_channels2,
-                            name=name + "2_dw_2")))
+                conv_2 = ConvBNLayer(
+                    in_channels=out_channels2,
+                    out_channels=out_channels2,
+                    kernel_size=3,
+                    stride=1,
+                    padding=1,
+                    num_groups=out_channels2,
+                    name=name + "1_dw_1")
+                self.add_module(name + "2_dw_1", conv_2)
+                self.conv_dw2.append(conv_2)
+
+                conv_3 = ConvBNLayer(
+                    in_channels=out_channels2,
+                    out_channels=out_channels2,
+                    kernel_size=3,
+                    stride=1,
+                    padding=1,
+                    num_groups=out_channels2,
+                    name=name + "2_dw_2")
+
+                self.add_module(name + "2_dw_2", conv_3)
+                self.conv_dw2.append(conv_3)
             self.conv_pw2 = ConvBNLayer(
                 in_channels=out_channels2,
                 out_channels=double_channels,
@@ -182,21 +176,19 @@ class BlazeBlock(nn.Module):
         if self.use_pool:
             shortcut_channel = double_channels or out_channels2
             self._shortcut = []
-            self._shortcut.append(
-                self.add_sublayer(
-                    name + '_shortcut_pool',
-                    nn.MaxPool2d(
-                        kernel_size=stride, stride=stride, ceil_mode=True)))
-            self._shortcut.append(
-                self.add_sublayer(
-                    name + '_shortcut_conv',
-                    ConvBNLayer(
-                        in_channels=in_channels,
-                        out_channels=shortcut_channel,
-                        kernel_size=1,
-                        stride=1,
-                        padding=0,
-                        name="shortcut" + name)))
+            temp_pool = nn.MaxPool2d(kernel_size=stride, stride=stride, ceil_mode=True)
+            self.add_module(name + '_shortcut_pool', temp_pool)
+            self._shortcut.append(temp_pool)
+
+            temp_pool = ConvBNLayer(
+                in_channels=in_channels,
+                out_channels=shortcut_channel,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                name="shortcut" + name)
+            self.add_module(name + '_shortcut_conv', temp_pool)
+            self._shortcut.append(temp_pool)
 
     def forward(self, x):
         y = x
@@ -210,7 +202,7 @@ class BlazeBlock(nn.Module):
         if self.use_pool:
             for shortcut in self._shortcut:
                 x = shortcut(x)
-        return F.relu(paddle.add(x, y))
+        return F.relu(torch.add(x, y))
 
 
 @register
@@ -248,58 +240,50 @@ class BlazeNet(nn.Module):
             assert len(v) in [2, 3], \
                 "blaze_filters {} not in [2, 3]"
             if len(v) == 2:
-                self.blaze_block.append(
-                    self.add_sublayer(
-                        'blaze_{}'.format(k),
-                        BlazeBlock(
-                            in_channels,
-                            v[0],
-                            v[1],
-                            use_5x5kernel=use_5x5kernel,
-                            act=act,
-                            name='blaze_{}'.format(k))))
+                temp_conv = BlazeBlock(in_channels,
+                                       v[0],
+                                       v[1],
+                                       use_5x5kernel=use_5x5kernel,
+                                       act=act,
+                                       name='blaze_{}'.format(k))
+
+                self.add_module('blaze_{}'.format(k), temp_conv)
+                self.blaze_block.append(temp_conv)
             elif len(v) == 3:
-                self.blaze_block.append(
-                    self.add_sublayer(
-                        'blaze_{}'.format(k),
-                        BlazeBlock(
-                            in_channels,
-                            v[0],
-                            v[1],
-                            stride=v[2],
-                            use_5x5kernel=use_5x5kernel,
-                            act=act,
-                            name='blaze_{}'.format(k))))
+                temp_conv = BlazeBlock(in_channels,
+                                       v[0],
+                                       v[1],
+                                       stride=v[2],
+                                       use_5x5kernel=use_5x5kernel,
+                                       act=act,
+                                       name='blaze_{}'.format(k))
+                self.add_module('blaze_{}'.format(k), temp_conv)
+                self.blaze_block.append(temp_conv)
             in_channels = v[1]
 
         for k, v in enumerate(double_blaze_filters):
             assert len(v) in [3, 4], \
                 "blaze_filters {} not in [3, 4]"
             if len(v) == 3:
-                self.blaze_block.append(
-                    self.add_sublayer(
-                        'double_blaze_{}'.format(k),
-                        BlazeBlock(
-                            in_channels,
-                            v[0],
-                            v[1],
-                            double_channels=v[2],
-                            use_5x5kernel=use_5x5kernel,
-                            act=act,
-                            name='double_blaze_{}'.format(k))))
+                temp_conv = BlazeBlock(in_channels, v[0],
+                                       v[1],
+                                       double_channels=v[2],
+                                       use_5x5kernel=use_5x5kernel,
+                                       act=act,
+                                       name='double_blaze_{}'.format(k))
+                self.add_module('double_blaze_{}'.format(k), temp_conv)
+                self.blaze_block.append(temp_conv)
             elif len(v) == 4:
-                self.blaze_block.append(
-                    self.add_sublayer(
-                        'double_blaze_{}'.format(k),
-                        BlazeBlock(
-                            in_channels,
-                            v[0],
-                            v[1],
-                            double_channels=v[2],
-                            stride=v[3],
-                            use_5x5kernel=use_5x5kernel,
-                            act=act,
-                            name='double_blaze_{}'.format(k))))
+                temp_conv = BlazeBlock(in_channels,
+                                       v[0],
+                                       v[1],
+                                       double_channels=v[2],
+                                       stride=v[3],
+                                       use_5x5kernel=use_5x5kernel,
+                                       act=act,
+                                       name='double_blaze_{}'.format(k))
+                self.add_module('double_blaze_{}'.format(k), temp_conv)
+                self.blaze_block.append(temp_conv)
             in_channels = v[2]
             self._out_channels.append(in_channels)
 

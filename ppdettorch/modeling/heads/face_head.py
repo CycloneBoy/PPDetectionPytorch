@@ -60,23 +60,19 @@ class FaceHead(nn.Module):
         self.score_convs = []
         for i, num_prior in enumerate(self.num_priors):
             box_conv_name = "boxes{}".format(i)
-            box_conv = self.add_sublayer(
-                box_conv_name,
-                nn.Conv2d(
-                    in_channels=self.in_channels[i],
-                    out_channels=num_prior * 4,
-                    kernel_size=kernel_size,
-                    padding=padding))
+            box_conv = nn.Conv2d(in_channels=self.in_channels[i],
+                                 out_channels=num_prior * 4,
+                                 kernel_size=kernel_size,
+                                 padding=padding)
+            self.add_module(box_conv_name, box_conv)
             self.box_convs.append(box_conv)
 
             score_conv_name = "scores{}".format(i)
-            score_conv = self.add_sublayer(
-                score_conv_name,
-                nn.Conv2d(
-                    in_channels=self.in_channels[i],
-                    out_channels=num_prior * self.num_classes,
-                    kernel_size=kernel_size,
-                    padding=padding))
+            score_conv = nn.Conv2d(in_channels=self.in_channels[i],
+                                   out_channels=num_prior * self.num_classes,
+                                   kernel_size=kernel_size,
+                                   padding=padding)
+            self.add_module(score_conv_name, score_conv)
             self.score_convs.append(score_conv)
 
     @classmethod
@@ -90,13 +86,13 @@ class FaceHead(nn.Module):
         for feat, box_conv, score_conv in zip(feats, self.box_convs,
                                               self.score_convs):
             box_pred = box_conv(feat)
-            box_pred = paddle.transpose(box_pred, [0, 2, 3, 1])
-            box_pred = paddle.reshape(box_pred, [0, -1, 4])
+            box_pred = torch.permute(box_pred, [0, 2, 3, 1])
+            box_pred = torch.reshape(box_pred, [box_pred.shape[0], -1, 4])
             box_preds.append(box_pred)
 
             cls_score = score_conv(feat)
-            cls_score = paddle.transpose(cls_score, [0, 2, 3, 1])
-            cls_score = paddle.reshape(cls_score, [0, -1, self.num_classes])
+            cls_score = torch.permute(cls_score, [0, 2, 3, 1])
+            cls_score = torch.reshape(cls_score, [cls_score.shape[0], -1, self.num_classes])
             cls_scores.append(cls_score)
 
         prior_boxes = self.anchor_generator(feats, image)

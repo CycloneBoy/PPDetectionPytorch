@@ -12,7 +12,7 @@ from . import mobilenet_v1
 from . import mobilenet_v3
 # from . import hrnet
 # from . import lite_hrnet
-# from . import blazenet
+from . import blazenet
 # from . import ghostnet
 # from . import senet
 # from . import res2net
@@ -39,7 +39,7 @@ from .mobilenet_v1 import *
 from .mobilenet_v3 import *
 # from .hrnet import *
 # from .lite_hrnet import *
-# from .blazenet import *
+from .blazenet import *
 # from .ghostnet import *
 # from .senet import *
 # from .res2net import *

@@ -168,6 +168,12 @@ class DetectionRunInfer(object):
         # config_name = f"ssdlite_mobilenet_v3_large_320_coco.yml"
         # config_name = f"ssdlite_mobilenet_v3_small_320_coco.yml"
 
+        # centernet
+        # config_name = f"centernet_mbv1_140e_coco.yml"
+
+        # blazeface
+        # config_name = f"blazeface_1000e.yml"
+        config_name = f"blazeface_fpn_ssh_1000e.yml"
 
         # run_arg = DetectionInferUtils.init_args()
         config_name = config_name if not config_name.endswith(".yml") else config_name[:-4]
@@ -181,6 +187,8 @@ class DetectionRunInfer(object):
             model_class = "ppyoloe"
         elif "ssdlite_" in config_name:
             model_class = "ssd"
+        elif "blazeface_" in config_name:
+            model_class = "face_detection"
         else:
             config_name_end_index = FileUtils.get_file_name(config_name).find("_")
             model_class = config_name[:config_name_end_index]
@@ -293,5 +301,5 @@ def run_picodet_coco_batch():
 
 
 if __name__ == '__main__':
-    # demo_run_detection_infer()
-    run_picodet_coco_batch()
+    demo_run_detection_infer()
+    # run_picodet_coco_batch()

@@ -14,7 +14,7 @@ from . import ssd_head
 # from . import solov2_head
 # from . import ttf_head
 # from . import cascade_head
-# from . import face_head
+from . import face_head
 # from . import s2anet_head
 # from . import keypoint_hrhrnet_head
 # from . import centernet_head
@@ -41,7 +41,7 @@ from .ssd_head import *
 # from .solov2_head import *
 # from .ttf_head import *
 # from .cascade_head import *
-# from .face_head import *
+from .face_head import *
 # from .s2anet_head import *
 # from .keypoint_hrhrnet_head import *
 # from .centernet_head import *

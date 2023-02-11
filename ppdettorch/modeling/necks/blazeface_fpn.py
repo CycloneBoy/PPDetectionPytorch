@@ -16,7 +16,6 @@ import torch
 import torch.nn.functional as F
 
 import torch.nn as nn
-# from paddle.nn.initializer import KaimingNormal
 from ppdettorch.core.workspace import register, serializable
 from ..shape_spec import ShapeSpec
 
@@ -50,9 +49,7 @@ class ConvBNLayer(nn.Module):
             stride=stride,
             padding=padding,
             groups=num_groups,
-            weight_attr=ParamAttr(
-                learning_rate=conv_lr, initializer=KaimingNormal()),
-            bias_attr=False)
+            bias=False)
 
         if norm_type in ['sync_bn', 'bn']:
             self._batch_norm = nn.BatchNorm2d(out_channels)
@@ -103,8 +100,8 @@ class FPN(nn.Module):
         output1 = self.conv1_fpn(input[0])
         output2 = self.conv2_fpn(input[1])
         up2 = F.upsample(
-            output2, size=paddle.shape(output1)[-2:], mode='nearest')
-        output1 = paddle.add(output1, up2)
+            output2, size=output1.shape[-2:], mode='nearest')
+        output1 = torch.add(output1, up2)
         output1 = self.conv3_fpn(output1)
         return output1, output2
 
@@ -160,7 +157,7 @@ class SSH(nn.Module):
         conv2 = self.conv2_ssh(conv1)
         conv3 = self.conv3_ssh(conv2)
         conv4 = self.conv4_ssh(conv3)
-        concat = paddle.concat([conv0, conv2, conv4], axis=1)
+        concat = torch.concat([conv0, conv2, conv4], dim=1)
         return F.relu(concat)
 
 
