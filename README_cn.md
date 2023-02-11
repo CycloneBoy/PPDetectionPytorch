@@ -27,6 +27,7 @@
 **近期更新**
 
 - 2023-02-03 迁移模型推理部分：ssd
+- 2023-02-03 迁移模型推理部分：blazeface
 - 2023-01-20 迁移模型推理部分：yolov8
 - 2023-01-06 yolov3 推理部分的目标检测况坐标转换
 - 2022-12-21 迁移模型推理部分：picodet,ppyoloe,yolox,yolov5,yolov6,yolov7,rtmdet

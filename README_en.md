@@ -26,6 +26,7 @@ This project aims to:
 
 **RECENT UPDATED**
 
+- 2023-02-11 Migration model inference part: blazeface
 - 2023-02-03 Migration model inference part: ssd
 - 2023-01-20 Migration model inference part: yolov8
 - 2023-01-06 Coordinate transformation of target detection in yolov3 inference part
