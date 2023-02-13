@@ -138,11 +138,11 @@ class DetectionRunInfer(object):
         # config_name = "ppyoloe_crn_s_300e_coco.yml"
 
         # yolox
-        config_name = "yolox_s_300e_coco.yml"
+        # config_name = "yolox_s_300e_coco.yml"
 
         # yolov3
         # config_name = "yolov3_mobilenet_v1_270e_coco.yml"
-        config_name = "yolov3_mobilenet_v3_large_270e_coco.yml"
+        # config_name = "yolov3_mobilenet_v3_large_270e_coco.yml"
         # config_name = "yolov3_darknet53_270e_coco.yml"
 
         # # yolov5
@@ -167,7 +167,7 @@ class DetectionRunInfer(object):
 
         # ssd
         # config_name = f"ssd_mobilenet_v1_300_120e_voc.yml"
-        config_name = f"ssd_vgg16_300_240e_voc.yml"
+        # config_name = f"ssd_vgg16_300_240e_voc.yml"
         # config_name = f"ssdlite_mobilenet_v3_large_320_coco.yml"
         # config_name = f"ssdlite_mobilenet_v3_small_320_coco.yml"
 
@@ -176,12 +176,12 @@ class DetectionRunInfer(object):
 
         # blazeface
         # config_name = f"blazeface_1000e.yml"
-        config_name = f"blazeface_fpn_ssh_1000e.yml"
+        # config_name = f"blazeface_fpn_ssh_1000e.yml"
 
         # retinanet
-        config_name = f"retinanet_r50_fpn_1x_coco.yml"
+        # config_name = f"retinanet_r50_fpn_1x_coco.yml"
         # config_name = f"retinanet_r101_fpn_2x_coco.yml"
-        # config_name = f"retinanet_r50_fpn_2x_coco.yml"
+        config_name = f"retinanet_r50_fpn_2x_coco.yml"
 
 
         # run_arg = DetectionInferUtils.init_args()

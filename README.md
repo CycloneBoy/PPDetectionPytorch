@@ -26,6 +26,7 @@ This project aims to:
 
 **RECENT UPDATED**
 
+- 2023-02-13 Migration model inference part: retinanet
 - 2023-02-11 Migration model inference part: blazeface
 - 2023-02-03 Migration model inference part: ssd
 - 2023-01-20 Migration model inference part: yolov8
