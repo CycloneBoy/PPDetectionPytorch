@@ -88,7 +88,7 @@ class AnchorGenerator(nn.Module):
         ]
         [
             self.register_buffer(
-                t.name, t, persistable=False) for t in cell_anchors
+                str(index), t, persistent=False) for index,t in enumerate(cell_anchors)
         ]
         return cell_anchors
 

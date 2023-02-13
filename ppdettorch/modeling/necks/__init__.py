@@ -5,7 +5,7 @@
 # @Author  ：sl
 # @Date    ：2022/11/1 18:07
 
-# from . import fpn
+from . import fpn
 from . import yolo_fpn
 # from . import hrfpn
 # from . import ttf_fpn
@@ -22,7 +22,7 @@ from . import rtmdet_pafpn
 from . import yolov8_pafpn
 
 
-# from .fpn import *
+from .fpn import *
 from .yolo_fpn import *
 # from .hrfpn import *
 # from .ttf_fpn import *

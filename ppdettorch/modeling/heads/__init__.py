@@ -24,7 +24,7 @@ from . import pico_head
 # from . import detr_head
 # from . import sparsercnn_head
 # from . import tood_head
-# from . import retina_head
+from . import retina_head
 from . import ppyoloe_head
 from . import yolov5_head
 from . import yolov6_head
@@ -51,7 +51,7 @@ from .pico_head import *
 # from .detr_head import *
 # from .sparsercnn_head import *
 # from .tood_head import *
-# from .retina_head import *
+from .retina_head import *
 from .ppyoloe_head import *
 from .yolov5_head import *
 from .yolov6_head import *

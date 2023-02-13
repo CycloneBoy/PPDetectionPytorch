@@ -15,8 +15,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-# from paddle.nn.initializer import XavierUniform
-
 from ppdettorch.core.workspace import register, serializable
 from ppdettorch.modeling.layers import ConvNormLayer
 from ..shape_spec import ShapeSpec
@@ -31,28 +29,28 @@ class FPN(nn.Module):
     Feature Pyramid Network, see https://arxiv.org/abs/1612.03144
 
     Args:
-        in_channels (list[int]): input channels of each level which can be 
+        in_channels (list[int]): input channels of each level which can be
             derived from the output shape of backbone by from_config
         out_channel (int): output channel of each level
         spatial_scales (list[float]): the spatial scales between input feature
-            maps and original input image which can be derived from the output 
+            maps and original input image which can be derived from the output
             shape of backbone by from_config
         has_extra_convs (bool): whether to add extra conv to the last level.
             default False
         extra_stage (int): the number of extra stages added to the last level.
             default 1
-        use_c5 (bool): Whether to use c5 as the input of extra stage, 
+        use_c5 (bool): Whether to use c5 as the input of extra stage,
             otherwise p5 is used. default True
-        norm_type (string|None): The normalization type in FPN module. If 
-            norm_type is None, norm will not be used after conv and if 
+        norm_type (string|None): The normalization type in FPN module. If
+            norm_type is None, norm will not be used after conv and if
             norm_type is string, bn, gn, sync_bn are available. default None
         norm_decay (float): weight decay for normalization layer weights.
             default 0.
-        freeze_norm (bool): whether to freeze normalization layer.  
+        freeze_norm (bool): whether to freeze normalization layer.
             default False
         relu_before_extra_convs (bool): whether to add relu before extra convs.
             default False
-        
+
     """
 
     def __init__(self,
@@ -94,51 +92,45 @@ class FPN(nn.Module):
                 lateral_name = 'fpn_inner_res{}_sum_lateral'.format(i + 2)
             in_c = in_channels[i - st_stage]
             if self.norm_type is not None:
-                lateral = self.add_sublayer(
-                    lateral_name,
-                    ConvNormLayer(
-                        ch_in=in_c,
-                        ch_out=out_channel,
-                        filter_size=1,
-                        stride=1,
-                        norm_type=self.norm_type,
-                        norm_decay=self.norm_decay,
-                        freeze_norm=self.freeze_norm,
-                        initializer=XavierUniform(fan_out=in_c)))
+                lateral = ConvNormLayer(
+                    ch_in=in_c,
+                    ch_out=out_channel,
+                    filter_size=1,
+                    stride=1,
+                    norm_type=self.norm_type,
+                    norm_decay=self.norm_decay,
+                    freeze_norm=self.freeze_norm,
+                )
+                self.add_module(lateral_name, lateral)
             else:
-                lateral = self.add_sublayer(
-                    lateral_name,
-                    nn.Conv2d(
-                        in_channels=in_c,
-                        out_channels=out_channel,
-                        kernel_size=1,
-                        weight_attr=ParamAttr(
-                            initializer=XavierUniform(fan_out=in_c))))
+                lateral = nn.Conv2d(
+                    in_channels=in_c,
+                    out_channels=out_channel,
+                    kernel_size=1,
+                )
+                self.add_module(lateral_name, lateral)
             self.lateral_convs.append(lateral)
 
             fpn_name = 'fpn_res{}_sum'.format(i + 2)
             if self.norm_type is not None:
-                fpn_conv = self.add_sublayer(
-                    fpn_name,
-                    ConvNormLayer(
-                        ch_in=out_channel,
-                        ch_out=out_channel,
-                        filter_size=3,
-                        stride=1,
-                        norm_type=self.norm_type,
-                        norm_decay=self.norm_decay,
-                        freeze_norm=self.freeze_norm,
-                        initializer=XavierUniform(fan_out=fan)))
+                fpn_conv = ConvNormLayer(
+                    ch_in=out_channel,
+                    ch_out=out_channel,
+                    filter_size=3,
+                    stride=1,
+                    norm_type=self.norm_type,
+                    norm_decay=self.norm_decay,
+                    freeze_norm=self.freeze_norm,
+                )
+                self.add_module(fpn_name, fpn_conv)
             else:
-                fpn_conv = self.add_sublayer(
-                    fpn_name,
-                    nn.Conv2d(
-                        in_channels=out_channel,
-                        out_channels=out_channel,
-                        kernel_size=3,
-                        padding=1,
-                        weight_attr=ParamAttr(
-                            initializer=XavierUniform(fan_out=fan))))
+                fpn_conv = nn.Conv2d(
+                    in_channels=out_channel,
+                    out_channels=out_channel,
+                    kernel_size=3,
+                    padding=1,
+                )
+                self.add_module(fpn_name, fpn_conv)
             self.fpn_convs.append(fpn_conv)
 
         # add extra conv levels for RetinaNet(use_c5)/FCOS(use_p5)
@@ -151,28 +143,25 @@ class FPN(nn.Module):
                     in_c = out_channel
                 extra_fpn_name = 'fpn_{}'.format(lvl + 2)
                 if self.norm_type is not None:
-                    extra_fpn_conv = self.add_sublayer(
-                        extra_fpn_name,
-                        ConvNormLayer(
-                            ch_in=in_c,
-                            ch_out=out_channel,
-                            filter_size=3,
-                            stride=2,
-                            norm_type=self.norm_type,
-                            norm_decay=self.norm_decay,
-                            freeze_norm=self.freeze_norm,
-                            initializer=XavierUniform(fan_out=fan)))
+                    extra_fpn_conv = ConvNormLayer(
+                        ch_in=in_c,
+                        ch_out=out_channel,
+                        filter_size=3,
+                        stride=2,
+                        norm_type=self.norm_type,
+                        norm_decay=self.norm_decay,
+                        freeze_norm=self.freeze_norm,
+                    )
+                    self.add_module(extra_fpn_name, extra_fpn_conv)
                 else:
-                    extra_fpn_conv = self.add_sublayer(
-                        extra_fpn_name,
-                        nn.Conv2d(
-                            in_channels=in_c,
-                            out_channels=out_channel,
-                            kernel_size=3,
-                            stride=2,
-                            padding=1,
-                            weight_attr=ParamAttr(
-                                initializer=XavierUniform(fan_out=fan))))
+                    extra_fpn_conv = nn.Conv2d(
+                        in_channels=in_c,
+                        out_channels=out_channel,
+                        kernel_size=3,
+                        stride=2,
+                        padding=1,
+                    )
+                    self.add_module(extra_fpn_name, extra_fpn_conv)
                 self.fpn_convs.append(extra_fpn_conv)
 
     @classmethod

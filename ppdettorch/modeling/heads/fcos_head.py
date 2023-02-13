@@ -74,31 +74,27 @@ class FCOSFeat(nn.Module):
             in_c = feat_in if i == 0 else feat_out
 
             cls_conv_name = 'fcos_head_cls_tower_conv_{}'.format(i)
-            cls_conv = self.add_sublayer(
-                cls_conv_name,
-                ConvNormLayer(
-                    ch_in=in_c,
-                    ch_out=feat_out,
-                    filter_size=3,
-                    stride=1,
-                    norm_type=norm_type,
-                    use_dcn=use_dcn,
-                    bias_on=True,
-                    lr_scale=2.))
+            cls_conv = ConvNormLayer(ch_in=in_c,
+                                     ch_out=feat_out,
+                                     filter_size=3,
+                                     stride=1,
+                                     norm_type=norm_type,
+                                     use_dcn=use_dcn,
+                                     bias_on=True,
+                                     lr_scale=2.)
+            self.add_module(cls_conv_name, cls_conv)
             self.cls_subnet_convs.append(cls_conv)
 
             reg_conv_name = 'fcos_head_reg_tower_conv_{}'.format(i)
-            reg_conv = self.add_sublayer(
-                reg_conv_name,
-                ConvNormLayer(
-                    ch_in=in_c,
-                    ch_out=feat_out,
-                    filter_size=3,
-                    stride=1,
-                    norm_type=norm_type,
-                    use_dcn=use_dcn,
-                    bias_on=True,
-                    lr_scale=2.))
+            reg_conv = ConvNormLayer(ch_in=in_c,
+                                     ch_out=feat_out,
+                                     filter_size=3,
+                                     stride=1,
+                                     norm_type=norm_type,
+                                     use_dcn=use_dcn,
+                                     bias_on=True,
+                                     lr_scale=2.)
+            self.add_module(reg_conv_name, reg_conv)
             self.reg_subnet_convs.append(reg_conv)
 
     def forward(self, fpn_feat):
@@ -145,7 +141,7 @@ class FCOSHead(nn.Module):
 
         conv_cls_name = "fcos_head_cls"
         bias_init_value = -math.log((1 - self.prior_prob) / self.prior_prob)
-        self.fcos_head_cls = self.add_sublayer(
+        self.fcos_head_cls = self.add_module(
             conv_cls_name,
             nn.Conv2d(
                 in_channels=256,
@@ -159,7 +155,7 @@ class FCOSHead(nn.Module):
                     initializer=Constant(value=bias_init_value))))
 
         conv_reg_name = "fcos_head_reg"
-        self.fcos_head_reg = self.add_sublayer(
+        self.fcos_head_reg = self.add_module(
             conv_reg_name,
             nn.Conv2d(
                 in_channels=256,
@@ -172,7 +168,7 @@ class FCOSHead(nn.Module):
                 bias_attr=ParamAttr(initializer=Constant(value=0))))
 
         conv_centerness_name = "fcos_head_centerness"
-        self.fcos_head_centerness = self.add_sublayer(
+        self.fcos_head_centerness = self.add_module(
             conv_centerness_name,
             nn.Conv2d(
                 in_channels=256,
@@ -188,7 +184,7 @@ class FCOSHead(nn.Module):
         for i in range(len(self.fpn_stride)):
             lvl = int(math.log(int(self.fpn_stride[i]), 2))
             feat_name = 'p{}_feat'.format(lvl)
-            scale_reg = self.add_sublayer(feat_name, ScaleReg())
+            scale_reg = self.add_module(feat_name, ScaleReg())
             self.scales_regs.append(scale_reg)
 
     def _compute_locations_by_level(self, fpn_stride, feature):

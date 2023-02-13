@@ -168,7 +168,7 @@ class DeformableConvV2(nn.Module):
         offset_mask = self.conv_offset(x)
         offset, mask = torch.split(
             offset_mask,
-            num_or_sections=[self.offset_channel, self.mask_channel],
+            split_size_or_sections=[self.offset_channel, self.mask_channel],
             dim=1)
         mask = F.sigmoid(mask)
         y = self.conv_dcn(x, offset, mask=mask)

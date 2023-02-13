@@ -21,11 +21,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# from paddle.nn.initializer import Normal, Constant
+from ppdettorch.core.workspace import register
 from ppdettorch.modeling.bbox_utils import bbox2delta, delta2bbox
 from ppdettorch.modeling.heads.fcos_head import FCOSFeat
 
-from ppdettorch.core.workspace import register
 
 __all__ = ['RetinaHead']
 
@@ -72,24 +71,18 @@ class RetinaHead(nn.Module):
 
         bias_init_value = -math.log((1 - prior_prob) / prior_prob)
         num_anchors = self.anchor_generator.num_anchors
-        self.retina_cls = nn.Conv2d(
-            in_channels=self.conv_feat.feat_out,
-            out_channels=self.num_classes * num_anchors,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-            weight_attr=ParamAttr(initializer=Normal(
-                mean=0.0, std=0.01)),
-            bias_attr=ParamAttr(initializer=Constant(value=bias_init_value)))
-        self.retina_reg = nn.Conv2d(
-            in_channels=self.conv_feat.feat_out,
-            out_channels=4 * num_anchors,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-            weight_attr=ParamAttr(initializer=Normal(
-                mean=0.0, std=0.01)),
-            bias_attr=ParamAttr(initializer=Constant(value=0)))
+        self.retina_cls = nn.Conv2d(in_channels=self.conv_feat.feat_out,
+                                    out_channels=self.num_classes * num_anchors,
+                                    kernel_size=3,
+                                    stride=1,
+                                    padding=1,
+                                    bias=True)
+        self.retina_reg = nn.Conv2d(in_channels=self.conv_feat.feat_out,
+                                    out_channels=4 * num_anchors,
+                                    kernel_size=3,
+                                    stride=1,
+                                    padding=1,
+                                    bias=True)
 
     def forward(self, neck_feats, targets=None):
         cls_logits_list = []
@@ -114,7 +107,7 @@ class RetinaHead(nn.Module):
         """
         cls_logits_list, bboxes_reg_list = head_outputs
         anchors = self.anchor_generator(cls_logits_list)
-        anchors = paddle.concat(anchors)
+        anchors = torch.concat(anchors)
 
         # matches: contain gt_inds
         # match_labels: -1(ignore), 0(neg) or 1(pos)
@@ -134,27 +127,26 @@ class RetinaHead(nn.Module):
             _.transpose([0, 2, 3, 1]).reshape([0, -1, 4])
             for _ in bboxes_reg_list
         ]
-        cls_logits = paddle.concat(cls_logits, axis=1)
-        bboxes_reg = paddle.concat(bboxes_reg, axis=1)
+        cls_logits = torch.concat(cls_logits, dim=1)
+        bboxes_reg = torch.concat(bboxes_reg, dim=1)
 
         cls_pred_list, cls_tar_list = [], []
         reg_pred_list, reg_tar_list = [], []
         # find and gather preds and targets in each image
         for matches, match_labels, cls_logit, bbox_reg, gt_bbox, gt_class in \
-            zip(matches_list, match_labels_list, cls_logits, bboxes_reg,
-                targets['gt_bbox'], targets['gt_class']):
+                zip(matches_list, match_labels_list, cls_logits, bboxes_reg,
+                    targets['gt_bbox'], targets['gt_class']):
             pos_mask = (match_labels == 1)
             neg_mask = (match_labels == 0)
-            chosen_mask = paddle.logical_or(pos_mask, neg_mask)
+            chosen_mask = torch.logical_or(pos_mask, neg_mask)
 
             gt_class = gt_class.reshape([-1])
-            bg_class = paddle.to_tensor(
-                [self.num_classes], dtype=gt_class.dtype)
+            bg_class = torch.tensor([self.num_classes], dtype=gt_class.dtype)
             # a trick to assign num_classes to negative targets
-            gt_class = paddle.concat([gt_class, bg_class], axis=-1)
-            matches = paddle.where(neg_mask,
-                                   paddle.full_like(matches, gt_class.size - 1),
-                                   matches)
+            gt_class = torch.concat([gt_class, bg_class], dim=-1)
+            matches = torch.where(neg_mask,
+                                  torch.full_like(matches, gt_class.size - 1),
+                                  matches)
 
             cls_pred = cls_logit[chosen_mask]
             cls_tar = gt_class[matches[chosen_mask]]
@@ -165,17 +157,17 @@ class RetinaHead(nn.Module):
             cls_tar_list.append(cls_tar)
             reg_pred_list.append(reg_pred)
             reg_tar_list.append(reg_tar)
-        cls_pred = paddle.concat(cls_pred_list)
-        cls_tar = paddle.concat(cls_tar_list)
-        reg_pred = paddle.concat(reg_pred_list)
-        reg_tar = paddle.concat(reg_tar_list)
+        cls_pred = torch.concat(cls_pred_list)
+        cls_tar = torch.concat(cls_tar_list)
+        reg_pred = torch.concat(reg_pred_list)
+        reg_tar = torch.concat(reg_tar_list)
 
         avg_factor = max(1.0, reg_pred.shape[0])
         cls_loss = self.loss_class(
             cls_pred, cls_tar, reduction='sum') / avg_factor
 
         if reg_pred.shape[0] == 0:
-            reg_loss = paddle.zeros([1])
+            reg_loss = torch.zeros([1])
             reg_loss.stop_gradient = False
         else:
             reg_loss = self.loss_bbox(
@@ -204,21 +196,27 @@ class RetinaHead(nn.Module):
             cls_score = cls_score.reshape([-1, self.num_classes])
             bbox_pred = bbox_pred.reshape([-1, 4])
             if self.nms_pre is not None and cls_score.shape[0] > self.nms_pre:
-                max_score = cls_score.max(axis=1)
-                _, topk_inds = max_score.topk(self.nms_pre)
-                bbox_pred = bbox_pred.gather(topk_inds)
-                anchor = anchor.gather(topk_inds)
-                cls_score = cls_score.gather(topk_inds)
-            bbox_pred = delta2bbox(bbox_pred, anchor, self.weights).squeeze()
+                max_score = torch.max(cls_score, dim=1)
+                _, topk_inds = max_score[0].topk(self.nms_pre)
+                # topk_probs, topk_inds = torch.topk(max_score, self.nms_pre, sorted=True)
+
+                bbox_pred = torch.index_select(bbox_pred, 0, topk_inds)
+                anchor = torch.index_select(anchor.to(bbox_pred.device), 0, topk_inds)
+                cls_score = torch.index_select(cls_score, 0, topk_inds)
+            bbox_pred = delta2bbox(bbox_pred, anchor.to(bbox_pred.device), self.weights).squeeze()
             mlvl_bboxes.append(bbox_pred)
             mlvl_scores.append(F.sigmoid(cls_score))
-        mlvl_bboxes = paddle.concat(mlvl_bboxes)
-        mlvl_bboxes = paddle.squeeze(mlvl_bboxes)
+        mlvl_bboxes = torch.concat(mlvl_bboxes)
+        mlvl_bboxes = torch.squeeze(mlvl_bboxes)
         if rescale:
-            mlvl_bboxes = mlvl_bboxes / paddle.concat(
-                [scale_factor[::-1], scale_factor[::-1]])
-        mlvl_scores = paddle.concat(mlvl_scores)
-        mlvl_scores = mlvl_scores.transpose([1, 0])
+            new_scale_factor = scale_factor.detach().cpu().numpy().tolist()
+            new_scale_factor = new_scale_factor[::-1]
+            scale_factor = torch.tensor(new_scale_factor, device=scale_factor.device, dtype=scale_factor.dtype)
+
+            mlvl_bboxes = mlvl_bboxes / torch.concat(
+                [scale_factor, scale_factor])
+        mlvl_scores = torch.concat(mlvl_scores)
+        mlvl_scores = mlvl_scores.permute(1, 0)
         return mlvl_bboxes, mlvl_scores
 
     def decode(self, anchors, cls_logits, bboxes_reg, im_shape, scale_factor):
@@ -233,17 +231,44 @@ class RetinaHead(nn.Module):
                 scale_factor[img_id])
             batch_bboxes.append(bboxes)
             batch_scores.append(scores)
-        batch_bboxes = paddle.stack(batch_bboxes, axis=0)
-        batch_scores = paddle.stack(batch_scores, axis=0)
+        batch_bboxes = torch.stack(batch_bboxes, dim=0)
+        batch_scores = torch.stack(batch_scores, dim=0)
         return batch_bboxes, batch_scores
 
     def post_process(self, head_outputs, im_shape, scale_factor):
         cls_logits_list, bboxes_reg_list = head_outputs
         anchors = self.anchor_generator(cls_logits_list)
-        cls_logits = [_.transpose([0, 2, 3, 1]) for _ in cls_logits_list]
-        bboxes_reg = [_.transpose([0, 2, 3, 1]) for _ in bboxes_reg_list]
+        cls_logits = [_.permute(0, 2, 3, 1) for _ in cls_logits_list]
+        bboxes_reg = [_.permute(0, 2, 3, 1) for _ in bboxes_reg_list]
         bboxes, scores = self.decode(anchors, cls_logits, bboxes_reg, im_shape,
                                      scale_factor)
 
-        bbox_pred, bbox_num, _ = self.nms(bboxes, scores)
-        return bbox_pred, bbox_num
+        bbox_pred, bbox_num, nms_keep_idx = self.nms(bboxes, scores)
+        return bbox_pred, bbox_num, nms_keep_idx
+
+    def get_scores_single(self, cls_scores_list):
+        mlvl_logits = []
+        for cls_score in cls_scores_list:
+            cls_score = cls_score.reshape([-1, self.num_classes])
+            if self.nms_pre is not None and cls_score.shape[0] > self.nms_pre:
+                max_score = cls_score.max(dim=1)
+                _, topk_inds = max_score.topk(self.nms_pre)
+                cls_score = cls_score.gather(topk_inds)
+
+            mlvl_logits.append(cls_score)
+
+        mlvl_logits = torch.concat(mlvl_logits)
+        mlvl_logits = mlvl_logits.transpose([1, 0])
+
+        return mlvl_logits
+
+    def decode_cls_logits(self, cls_logits_list):
+        cls_logits = [_.transpose([0, 2, 3, 1]) for _ in cls_logits_list]
+        batch_logits = []
+        for img_id in range(cls_logits[0].shape[0]):
+            num_lvls = len(cls_logits)
+            cls_scores_list = [cls_logits[i][img_id] for i in range(num_lvls)]
+            logits = self.get_scores_single(cls_scores_list)
+            batch_logits.append(logits)
+        batch_logits = torch.stack(batch_logits, dim=0)
+        return batch_logits

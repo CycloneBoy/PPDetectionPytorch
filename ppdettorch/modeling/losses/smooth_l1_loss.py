@@ -23,15 +23,13 @@ from ppdettorch.core.workspace import register
 
 __all__ = ['SmoothL1Loss']
 
-
 @register
 class SmoothL1Loss(nn.Module):
     """Smooth L1 Loss.
     Args:
         beta (float): controls smooth region, it becomes L1 Loss when beta=0.0
-        loss_weight (float): the final loss will be multiplied by this 
+        loss_weight (float): the final loss will be multiplied by this
     """
-
     def __init__(self,
                  beta=1.0,
                  loss_weight=1.0):
@@ -50,11 +48,11 @@ class SmoothL1Loss(nn.Module):
         assert reduction in ('none', 'sum', 'mean')
         target = target.detach()
         if self.beta < 1e-5:
-            loss = paddle.abs(pred - target)
+            loss = torch.abs(pred - target)
         else:
-            n = paddle.abs(pred - target)
+            n = torch.abs(pred - target)
             cond = n < self.beta
-            loss = paddle.where(cond, 0.5 * n ** 2 / self.beta, n - 0.5 * self.beta)
+            loss = torch.where(cond, 0.5 * n ** 2 / self.beta, n - 0.5 * self.beta)
         if reduction == 'mean':
             loss = loss.mean() if loss.size > 0 else 0.0 * loss.sum()
         elif reduction == 'sum':

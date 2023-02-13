@@ -18,8 +18,8 @@ from . import ssd_loss
 from . import gfocal_loss
 # from . import detr_loss
 # from . import sparsercnn_loss
-# from . import focal_loss
-# from . import smooth_l1_loss
+from . import focal_loss
+from . import smooth_l1_loss
 from . import varifocal_loss
 from . import yolov5_loss
 # from . import yolov7_loss
@@ -37,8 +37,8 @@ from .ssd_loss import *
 from .gfocal_loss import *
 # from .detr_loss import *
 # from .sparsercnn_loss import *
-# from .focal_loss import *
-# from .smooth_l1_loss import *
+from .focal_loss import *
+from .smooth_l1_loss import *
 from .varifocal_loss import *
 from .yolov5_loss import *
 # from .yolov7_loss import *

@@ -54,6 +54,9 @@ class DetectionRunInfer(object):
                             "picodet_s_192_lcnet_pedestrian", "picodet_s_320_lcnet_pedestrian"]:
             base_url = self.checkpoint_base_url_pedestrian
             # model_name = str(model_name).replace("_pedestrian", "_pedestrian")
+        elif model_name in ['retinanet_r50_fpn_2x_coco']:
+            base_url = self.checkpoint_base_url
+            model_name = "retinanet_r101_distill_r50_2x_coco"
         else:
             base_url = self.checkpoint_base_url
 
@@ -107,7 +110,7 @@ class DetectionRunInfer(object):
 
         :return:
         """
-
+        # picodet
         config_name = "picodet_s_320_coco"
         config_name = "picodet_s_416_coco"
         config_name = "picodet_m_320_coco"
@@ -174,6 +177,12 @@ class DetectionRunInfer(object):
         # blazeface
         # config_name = f"blazeface_1000e.yml"
         config_name = f"blazeface_fpn_ssh_1000e.yml"
+
+        # retinanet
+        config_name = f"retinanet_r50_fpn_1x_coco.yml"
+        # config_name = f"retinanet_r101_fpn_2x_coco.yml"
+        # config_name = f"retinanet_r50_fpn_2x_coco.yml"
+
 
         # run_arg = DetectionInferUtils.init_args()
         config_name = config_name if not config_name.endswith(".yml") else config_name[:-4]
