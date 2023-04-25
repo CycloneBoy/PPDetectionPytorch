@@ -13,7 +13,7 @@ class Constants(object):
 
     """
     USER_HOME = os.path.expanduser("~")
-    WORK_DIR = f"{USER_HOME}/shenglei/ocr/PPDetectionPytorch"
+    WORK_DIR = f"{USER_HOME}/work/PPDetectionPytorch"
     # WORK_DIR = "./"
 
     DATA_DIR = f"{WORK_DIR}/data"

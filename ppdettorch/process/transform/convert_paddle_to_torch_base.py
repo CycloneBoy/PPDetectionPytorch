@@ -9,6 +9,8 @@
 import os
 import paddle
 
+from ppdettorch.utils.model_utils import ModelUtils
+
 
 class ConvertPaddleToTorchBase(object):
 
@@ -24,7 +26,8 @@ class ConvertPaddleToTorchBase(object):
         :param show_info:
         :return:
         """
-        paddle_model_params = paddle.load(file_name, return_numpy=True)
+        # paddle_model_params = paddle.load(file_name, return_numpy=True)
+        paddle_model_params = ModelUtils.load(file_name, return_numpy=True)
 
         model_params = []
         for weight_name, weight_value in paddle_model_params.items():

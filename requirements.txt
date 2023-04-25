@@ -18,4 +18,5 @@ lap
 motmetrics
 sklearn
 filterpy
-paddlepaddle-gpu
+# paddlepaddle-gpu
+pytorch
