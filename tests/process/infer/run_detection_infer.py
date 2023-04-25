@@ -30,7 +30,7 @@ class DetectionRunInfer(object):
         self.checkpoint_base_url = "https://paddledet.bj.bcebos.com/models"
         self.checkpoint_base_url_ppstructure = "https://paddleocr.bj.bcebos.com/ppstructure/models/layout/"
         self.checkpoint_base_url_pedestrian = "https://bj.bcebos.com/v1/paddledet/models/keypoint/tinypose_enhance/"
-        # self.checkpoint_base_url = "/home/mqq/.cache/paddle/weights/"
+        # self.checkpoint_base_url = "~/.cache/paddle/weights/"
 
     def run_picodet_coco_model(self, config_file=None, do_transform=True):
         """
@@ -49,7 +49,7 @@ class DetectionRunInfer(object):
         if model_name in ["picodet_lcnet_x1_0_layout", ]:
             layout_zh = True
             base_url = self.checkpoint_base_url_ppstructure
-            predict_labels = "/home/mqq/shenglei/ocr/PaddleOCR/ppocr/utils/dict/layout_dict/layout_cdla_dict.txt"
+            predict_labels = "~/PaddleOCR/ppocr/utils/dict/layout_dict/layout_cdla_dict.txt"
         elif model_name in ["picodet_s_192_pedestrian", "picodet_s_320_pedestrian",
                             "picodet_s_192_lcnet_pedestrian", "picodet_s_320_lcnet_pedestrian"]:
             base_url = self.checkpoint_base_url_pedestrian
@@ -82,7 +82,7 @@ class DetectionRunInfer(object):
         # run_arg.infer_img = f"{self.base_dir}/demo/car.jpg"
         # run_arg.infer_img = f"{self.base_dir}/docs/images/layout.jpg"
         # run_arg.infer_img = f"{self.base_dir}/docs/images/layout_demo2.png"
-        # run_arg.infer_img = f"/home/mqq/shenglei/ocr/PaddleOCR/ppstructure/docs/table/layout_demo2.png"
+        # run_arg.infer_img = f"{Constants.USER_HOME}/ocr/PaddleOCR/ppstructure/docs/table/layout_demo2.png"
         run_arg.predict_labels = predict_labels
 
         model_class = self.get_model_class(config_file)
@@ -101,12 +101,6 @@ class DetectionRunInfer(object):
     def run_picodet_coco(self, config_name=None):
         """
         测试 picodet
-
-        python tools/infer.py -c /home/mqq/shenglei/ocr/PaddleDetection/configs/picodet/legacy_model/picodet_s_320_coco.yml \
-         -o use_gpu=true weights=/home/mqq/.cache/paddle/weights/picodet_s_320_coco.pdparams \
-         --infer_img=/home/mqq/shenglei/ocr/PaddleDetection/demo/000000014439.jpg
-
-        data/detection/configs/picodet/legacy_model/more_config/picodet_lcnet_1_5x_416_coco.yml
 
         :return:
         """
@@ -272,7 +266,6 @@ def run_picodet_coco_batch():
         ]
     }
 
-    # base_dir = f"/home/mqq/shenglei/ocr/PaddleDetection/configs/{model_class}"
     base_dir = f"{Constants.WORK_DIR}/configs/{model_class}"
     if with_application:
         base_dir = f"{base_dir}/application"

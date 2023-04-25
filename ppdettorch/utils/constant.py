@@ -3,8 +3,7 @@
 # @File  : 
 # @Author: sl
 # @Date  : 2022/12/20 - 21:56
-
-
+import os
 import re
 
 
@@ -13,7 +12,8 @@ class Constants(object):
     常量工具类
 
     """
-    WORK_DIR = "/home/mqq/shenglei/ocr/PPDetectionPytorch"
+    USER_HOME = os.path.expanduser("~")
+    WORK_DIR = f"{USER_HOME}/shenglei/ocr/PPDetectionPytorch"
     # WORK_DIR = "./"
 
     DATA_DIR = f"{WORK_DIR}/data"

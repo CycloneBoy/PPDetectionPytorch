@@ -308,7 +308,7 @@ def prior_box(input,
         .. code-block:: python
 
         import torch
-        from finanicial_ner.model.detection.modeling import ops
+        from ppdettorch.model.detection.modeling import ops
 
         torch.enable_static()
         input = torch.static.data(name="input", shape=[None,3,6,9])

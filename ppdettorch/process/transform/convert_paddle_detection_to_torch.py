@@ -728,7 +728,7 @@ def demo_convert():
     # model_name = "picodet_s_320_coco"
     model_name = "picodet_s_416_coco"
 
-    paddle_weight_base_dir = f"/home/mqq/.cache/paddle/weights"
+    paddle_weight_base_dir = f"~/.cache/paddle/weights"
     file_name = f"{paddle_weight_base_dir}/{model_name}.pdparams"
     output_dir = f"{paddle_weight_base_dir}/{model_name}.pth"
     base_dir = file_name
