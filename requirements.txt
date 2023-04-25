@@ -19,4 +19,4 @@ motmetrics
 sklearn
 filterpy
 # paddlepaddle-gpu
-pytorch
+torch

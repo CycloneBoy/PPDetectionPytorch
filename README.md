@@ -26,6 +26,7 @@ This project aims to:
 
 **RECENT UPDATED**
 
+- 2023-04-25 Migration model inference part: rt-detr(DETRs Beat YOLOs on Real-time Object Detection)
 - 2023-02-13 Migration model inference part: retinanet
 - 2023-02-11 Migration model inference part: blazeface
 - 2023-02-03 Migration model inference part: ssd
