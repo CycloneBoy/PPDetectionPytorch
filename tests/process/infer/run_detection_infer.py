@@ -178,10 +178,10 @@ class DetectionRunInfer(object):
         # config_name = f"retinanet_r50_fpn_2x_coco.yml"
 
         # rtdetr
-        # config_name = f"rtdetr_r50vd_6x_coco.yml"
+        config_name = f"rtdetr_r50vd_6x_coco.yml"
         # config_name = f"rtdetr_r101vd_6x_coco.yml"
         # config_name = f"rtdetr_hgnetv2_l_6x_coco.yml"
-        config_name = f"rtdetr_hgnetv2_x_6x_coco.yml"
+        # config_name = f"rtdetr_hgnetv2_x_6x_coco.yml"
 
         # run_arg = DetectionInferUtils.init_args()
         config_name = config_name if not config_name.endswith(".yml") else config_name[:-4]
@@ -242,16 +242,17 @@ def run_picodet_coco_batch():
 
     :return:
     """
-    model_class = "picodet"
-    model_class = "ppyoloe"
-    model_class = "yolox"
-    model_class = "yolov3"
-    model_class = "yolov5"
+    # model_class = "picodet"
+    # model_class = "ppyoloe"
+    # model_class = "yolox"
+    # model_class = "yolov3"
+    # model_class = "yolov5"
     # model_class = "yolov6"
     # model_class = "yolov7"
     # model_class = "rtmdet"
     # model_class = "yolov8"
-    model_class = "ssd"
+    # model_class = "ssd"
+    model_class = "rtdetr"
 
     with_application = False
     # with_application = True
