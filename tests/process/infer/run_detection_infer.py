@@ -86,7 +86,7 @@ class DetectionRunInfer(object):
         run_arg.predict_labels = predict_labels
 
         model_class = self.get_model_class(config_file)
-        run_arg.output_dir = f"{Constants.OUTPUT_MODELS_DIR}/detection/{model_class}/inference_results/{self.run_time}/{model_name}"
+        run_arg.output_dir = f"{Constants.OUTPUT_MODELS_DIR}/detection/{model_class}/{model_name}/inference_results/{self.run_time}"
 
         run_arg.do_transform = do_transform
         main_detection(run_arg)
@@ -175,8 +175,13 @@ class DetectionRunInfer(object):
         # retinanet
         # config_name = f"retinanet_r50_fpn_1x_coco.yml"
         # config_name = f"retinanet_r101_fpn_2x_coco.yml"
-        config_name = f"retinanet_r50_fpn_2x_coco.yml"
+        # config_name = f"retinanet_r50_fpn_2x_coco.yml"
 
+        # rtdetr
+        # config_name = f"rtdetr_r50vd_6x_coco.yml"
+        # config_name = f"rtdetr_r101vd_6x_coco.yml"
+        # config_name = f"rtdetr_hgnetv2_l_6x_coco.yml"
+        config_name = f"rtdetr_hgnetv2_x_6x_coco.yml"
 
         # run_arg = DetectionInferUtils.init_args()
         config_name = config_name if not config_name.endswith(".yml") else config_name[:-4]

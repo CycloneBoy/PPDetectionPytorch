@@ -13,6 +13,7 @@
 # limitations under the License.
 from typing import Optional, Dict, Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -702,7 +703,10 @@ def multiclass_nms_v2(
         bboxes = multi_bboxes.view(multi_scores.size(0), -1, 4)
     else:
         bboxes = multi_bboxes[:, None].expand(multi_scores.size(0), num_classes, 4)
-    scores = multi_scores[:, :-1]
+    if num_classes > 0:
+        scores = multi_scores[:, :-1]
+    else:
+        scores = multi_scores
 
     # filter out boxes with low scores
     valid_mask = scores > score_thr
@@ -1374,3 +1378,20 @@ def get_static_shape(tensor):
     shape = tensor.size()
     shape.stop_gradient = True
     return shape
+
+def gather_nd(params, indices):
+    orig_shape = list(indices.shape)
+    num_samples = np.prod(orig_shape[:-1])
+    m = orig_shape[-1]
+    n = len(params.shape)
+
+    if m <= n:
+        out_shape = orig_shape[:-1] + list(params.shape)[m:]
+    else:
+        raise ValueError(
+            f'the last dimension of indices must less or equal to the rank of params. Got indices:{indices.shape}, params:{params.shape}. {m} > {n}'
+        )
+
+    indices = indices.reshape((num_samples, m)).transpose(0, 1).tolist()
+    output = params[indices]  # (num_samples, ...)
+    return output.reshape(out_shape).contiguous()

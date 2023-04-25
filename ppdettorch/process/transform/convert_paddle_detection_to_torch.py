@@ -20,6 +20,7 @@ from ppdettorch.utils.file_utils import FileUtils
 转换  paddle detection model to torch
 """
 
+
 class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
 
     def __init__(self):
@@ -98,6 +99,25 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
         else:
             pattern = ""
         logger.info(f"prefix_all: {model_name} -> {pattern}")
+
+        return pattern
+
+    def get_model_prefix_pattern(self, model_name, name, default=None):
+        """
+        获取不同模型的 prefix_all
+
+        :param model_name:
+        :param name:
+        :param default:
+        :return:
+        """
+        pattern = self.get_model_match_pattern(model_name=model_name, name=name, default=None)
+
+        if isinstance(pattern, list) and len(pattern) > 0:
+            pattern = pattern
+        else:
+            pattern = ""
+        logger.info(f"{name}: {model_name} -> {pattern}")
 
         return pattern
 
@@ -191,6 +211,48 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
                 new_key = f"{key1}layers{key2}_stage{key3}_{key4}"
 
         return new_key
+
+    def update_prefix(self, model_name, prefix, prefix_to_save, prefix_all, pytorch_state_dict):
+        """
+        改模型 参数前缀
+
+        :param model_name:
+        :param prefix: 前缀
+        :param prefix_to_save: 替换的前缀
+        :param prefix_all: 所有的前缀
+        :param pytorch_state_dict:
+        :return:
+        """
+        if prefix_all is not None and len(prefix_all) == 0:
+            prefix_all = self.get_model_prefix_pattern(model_name=model_name, name="prefix_all")
+
+        if prefix is not None and len(prefix) == 0:
+            prefix = self.get_model_prefix_pattern(model_name=model_name, name="prefix")
+
+        if prefix_to_save is not None and len(prefix_to_save) == 0:
+            prefix_to_save = self.get_model_prefix_pattern(model_name=model_name, name="prefix_to_save")
+
+        # 改前缀
+        save_pytorch_state_dict = OrderedDict()
+        for k, v in pytorch_state_dict.items():
+            new_key = k
+            if isinstance(prefix, list):
+                for index, item in enumerate(prefix):
+                    if isinstance(prefix_to_save, list) and len(prefix_to_save) > index:
+                        new_item = prefix_to_save[index]
+                    else:
+                        new_item = ""
+                    if str(k).startswith(item):
+                        new_key = str(k).replace(item, new_item)
+                    else:
+                        new_key = k
+            else:
+                if str(k).startswith(prefix):
+                    new_key = str(k).replace(prefix, prefix_to_save)
+
+            prefix_new_key = f"{prefix_all}{new_key}"
+            save_pytorch_state_dict[prefix_new_key] = v
+        return save_pytorch_state_dict
 
     def yolov3_replace(self, model_name, key=None):
         """
@@ -552,16 +614,16 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
         paddle_to_torch = {
             "._mean": ".running_mean",
             "._variance": ".running_var",
+            ".embeddings.layer_norm.": ".embeddings.LayerNorm.",
         }
-
-        transpose_key = [
-            ".embeddings."
-        ]
 
         pytorch_state_dict = OrderedDict()
 
         if paddle_to_torch_param_name is not None:
             paddle_to_torch.update(paddle_to_torch_param_name)
+
+        model_class = self.get_model_class(model_name)
+        logger.info(f"开始参数转换：model_name: {model_name} - model_class: {model_class}")
 
         # 开始转换
         for k, v in paddle_model_params.items():
@@ -590,27 +652,18 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
             if show_info:
                 logger.info(f"{old_k} -> {k} - {v.shape}")
 
-        if prefix_all is not None and len(prefix_all) == 0:
-            prefix_all = self.get_model_prefix_all_pattern(model_name=model_name)
-
-        # 改前缀
-        save_pytorch_state_dict = OrderedDict()
-        for k, v in pytorch_state_dict.items():
-            if str(k).startswith(prefix):
-                new_key = str(k).replace(prefix, prefix_to_save)
-            else:
-                new_key = k
-
-            prefix_new_key = f"{prefix_all}{new_key}"
-            save_pytorch_state_dict[prefix_new_key] = v
+        save_pytorch_state_dict = self.update_prefix(model_name=model_name,
+                                                     prefix=prefix,
+                                                     prefix_to_save=prefix_to_save,
+                                                     prefix_all=prefix_all,
+                                                     pytorch_state_dict=pytorch_state_dict)
 
         # 添加其他
         model_class = self.get_model_class(model_name)
         model_add_pattern = self.get_model_add_pattern(model_name=model_class)
         if len(model_add_pattern) > 0:
-            if model_class in ["yolov8","yolov8p6"]:
+            if model_class in ["yolov8", "yolov8p6"]:
                 save_pytorch_state_dict[model_add_pattern[0]] = torch.tensor([1.0])
-
 
         if output_dir is not None and str(output_dir).rfind(".") > -1:
             save_model_path = output_dir
@@ -690,7 +743,6 @@ class ConvertPaddleDetectionModelToTorch(ConvertPaddleToTorchBase):
             else:
                 output_model_name = f"{model_name}.pth"
             output_dir = f"{model_path}/{output_model_name}"
-
 
         if filter_param_name is None:
             filter_param_name = self.get_filter_param_name(model_name=model_name)

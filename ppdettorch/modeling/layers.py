@@ -30,8 +30,6 @@ from numbers import Integral
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
-from ppdettorch.modeling.losses.yolo_loss import bbox_transform
 from torchvision.ops import DeformConv2d
 
 from ppdettorch.modeling.bbox_utils import delta2bbox, xywh2xyxy_v2, rescale_boxes, yolo_box_pytorch
@@ -592,8 +590,6 @@ class YOLOBox(object):
         self.clip_bbox = clip_bbox
         self.scale_x_y = scale_x_y
 
-        self.sigmoid = nn.Sigmoid()
-
     def __call__(self,
                  yolo_head_out,
                  anchors,
@@ -607,7 +603,6 @@ class YOLOBox(object):
 
         # img_size = origin_shape_list[1]
         img_size = im_shape.detach().cpu().numpy().tolist()[0][0]
-        # print(f"c {im_shape} -scale_factor: {scale_factor} -origin_shape_list: {origin_shape_list} - img_size: {img_size}")
 
         for i, head_out in enumerate(yolo_head_out):
             boxes, scores = yolo_box_pytorch(x=head_out,
@@ -1206,7 +1201,7 @@ class Concat(nn.Module):
         return 'dim={}'.format(self.dim)
 
 
-def _convert_attention_mask(attn_mask, dtype):
+def _convert_attention_mask(attn_mask: torch.Tensor, dtype):
     """
     Convert the attention mask to the target dtype we expect.
     Parameters:
@@ -1224,7 +1219,14 @@ def _convert_attention_mask(attn_mask, dtype):
     Returns:
         Tensor: A Tensor with shape same as input `attn_mask`, with data type `dtype`.
     """
-    return nn.Module.transformer._convert_attention_mask(attn_mask, dtype)
+    if attn_mask is not None and attn_mask.dtype != dtype:
+        attn_mask_dtype = attn_mask.dtype
+        if attn_mask_dtype == 'bool' or 'int' in attn_mask_dtype:
+            attn_mask = (attn_mask - 1.0) * 1e9
+        else:
+            attn_mask = attn_mask.float()
+    return attn_mask
+    # return nn.Transformer._convert_attention_mask(attn_mask, dtype)
 
 
 class MultiHeadAttention(nn.Module):
@@ -1283,16 +1285,8 @@ class MultiHeadAttention(nn.Module):
         assert self.head_dim * num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
 
         if self._qkv_same_embed_dim:
-            self.in_proj_weight = self.create_parameter(
-                shape=[embed_dim, 3 * embed_dim],
-                attr=None,
-                dtype=self._dtype,
-                is_bias=False)
-            self.in_proj_bias = self.create_parameter(
-                shape=[3 * embed_dim],
-                attr=None,
-                dtype=self._dtype,
-                is_bias=True)
+            self.in_proj_weight = nn.Parameter(torch.empty([embed_dim, 3 * embed_dim]))
+            self.in_proj_bias = nn.Parameter(torch.empty([3 * embed_dim]))
         else:
             self.q_proj = nn.Linear(embed_dim, embed_dim)
             self.k_proj = nn.Linear(self.kdim, embed_dim)
@@ -1304,25 +1298,21 @@ class MultiHeadAttention(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
-        for p in self.parameters():
-            if p.dim() > 1:
-                xavier_uniform_(p)
-            else:
-                constant_(p)
+        pass
 
     def compute_qkv(self, tensor, index):
         if self._qkv_same_embed_dim:
             tensor = F.linear(
-                x=tensor,
+                input=tensor,
                 weight=self.in_proj_weight[:, index * self.embed_dim:(index + 1)
-                                                                     * self.embed_dim],
+                                                                     * self.embed_dim].T,
                 bias=self.in_proj_bias[index * self.embed_dim:(index + 1) *
                                                               self.embed_dim]
                 if self.in_proj_bias is not None else None)
         else:
             tensor = getattr(self, self._type_list[index])(tensor)
         tensor = tensor.reshape(
-            [0, 0, self.num_heads, self.head_dim]).transpose([0, 2, 1, 3])
+            [tensor.shape[0], -1, self.num_heads, self.head_dim]).permute(0, 2, 1, 3)
         return tensor
 
     def forward(self, query, key=None, value=None, attn_mask=None):
@@ -1372,7 +1362,7 @@ class MultiHeadAttention(nn.Module):
                    for i, t in enumerate([query, key, value]))
 
         # scale dot product attention
-        product = torch.matmul(x=q, y=k, transpose_y=True)
+        product = torch.matmul(input=q, other=k.transpose(-1, -2))
         scaling = float(self.head_dim) ** -0.5
         product = product * scaling
 
@@ -1380,19 +1370,19 @@ class MultiHeadAttention(nn.Module):
             # Support bool or int mask
             attn_mask = _convert_attention_mask(attn_mask, product.dtype)
             product = product + attn_mask
-        weights = F.softmax(product)
+        weights = F.softmax(product, dim=-1)
         if self.dropout:
             weights = F.dropout(
                 weights,
                 self.dropout,
                 training=self.training,
-                mode="upscale_in_train")
+            )
 
         out = torch.matmul(weights, v)
 
         # combine heads
-        out = torch.transpose(out, perm=[0, 2, 1, 3])
-        out = torch.reshape(x=out, shape=[0, 0, out.shape[2] * out.shape[3]])
+        out = out.permute(0, 2, 1, 3).contiguous()
+        out = out.reshape([out.shape[0], out.shape[1], out.shape[2] * out.shape[3]])
 
         # project to output
         out = self.out_proj(out)

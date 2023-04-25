@@ -24,7 +24,7 @@ from . import centernet
 from . import blazeface
 # from . import gfl
 from . import picodet
-# from . import detr
+from . import detr
 # from . import sparse_rcnn
 # from . import tood
 from . import retinanet
@@ -53,7 +53,7 @@ from .centernet import *
 from .blazeface import *
 # from .gfl import *
 from .picodet import *
-# from .detr import *
+from .detr import *
 # from .sparse_rcnn import *
 # from .tood import *
 from .retinanet import *

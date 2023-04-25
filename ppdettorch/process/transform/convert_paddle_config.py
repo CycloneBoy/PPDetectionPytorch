@@ -201,5 +201,24 @@ MODEL_PARAMS_CONFIG = {
         ],
         "filter": [],
         "prefix_all": [],
+    },
+    # Detection RTDETR
+    "rtdetr": {
+        "rename": [
+        ],
+        "transpose": [
+            re.compile(r"transformer.query_pos_head.layers\.(\d+)\.weight"),
+            re.compile(r"transformer.decoder.layers\.(\d+)\..*\.weight"),
+            re.compile(r"transformer.enc_bbox_head.layers\.(\d+)\.weight"),
+            re.compile(r"transformer.enc_score_head.weight"),
+            re.compile(r"transformer.enc_output.0.weight"),
+            re.compile(r"transformer.dec_bbox_head\.(\d+)\.layers\.(\d+)\.weight"),
+            re.compile(r"transformer.dec_score_head\.(\d+)\.weight"),
+            re.compile(r"neck.encoder\.(\d+)\.layers.*\.(linear.*|self_attn.out_proj)\.weight"),
+        ],
+        "filter": [],
+        "prefix_all": [],
+        "prefix": [],
+        "prefix_to_save": [],
     }
 }

@@ -29,7 +29,7 @@ from ppdettorch.core.workspace import register
 from ..layers import MultiHeadAttention
 from .position_encoding import PositionEmbedding
 from .utils import _get_clones, deformable_attention_core_func
-# from ..initializer import linear_init_, constant_, xavier_uniform_, normal_
+
 
 __all__ = ['DeformableTransformer']
 
@@ -57,38 +57,25 @@ class MSDeformableAttention(nn.Module):
         self.sampling_offsets = nn.Linear(
             embed_dim,
             self.total_points * 2,
-            weight_attr=ParamAttr(learning_rate=lr_mult),
-            bias_attr=ParamAttr(learning_rate=lr_mult))
+            bias=True)
 
         self.attention_weights = nn.Linear(embed_dim, self.total_points)
         self.value_proj = nn.Linear(embed_dim, embed_dim)
         self.output_proj = nn.Linear(embed_dim, embed_dim)
 
+        try:
+            # use cuda op
+            from deformable_detr_ops import ms_deformable_attn
+        except:
+            # use paddle func
+            from .utils import deformable_attention_core_func as ms_deformable_attn
+        self.ms_deformable_attn_core = ms_deformable_attn
+
+
         self._reset_parameters()
 
     def _reset_parameters(self):
-        # sampling_offsets
-        constant_(self.sampling_offsets.weight)
-        thetas = paddle.arange(
-            self.num_heads,
-            dtype=paddle.float32) * (2.0 * math.pi / self.num_heads)
-        grid_init = paddle.stack([thetas.cos(), thetas.sin()], -1)
-        grid_init = grid_init / grid_init.abs().max(-1, keepdim=True)
-        grid_init = grid_init.reshape([self.num_heads, 1, 1, 2]).tile(
-            [1, self.num_levels, self.num_points, 1])
-        scaling = paddle.arange(
-            1, self.num_points + 1,
-            dtype=paddle.float32).reshape([1, 1, -1, 1])
-        grid_init *= scaling
-        self.sampling_offsets.bias.set_value(grid_init.flatten())
-        # attention_weights
-        constant_(self.attention_weights.weight)
-        constant_(self.attention_weights.bias)
-        # proj
-        xavier_uniform_(self.value_proj.weight)
-        constant_(self.value_proj.bias)
-        xavier_uniform_(self.output_proj.weight)
-        constant_(self.output_proj.bias)
+        pass
 
     def forward(self,
                 query,
@@ -167,10 +154,7 @@ class DeformableTransformerEncoderLayer(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
-        linear_init_(self.linear1)
-        linear_init_(self.linear2)
-        xavier_uniform_(self.linear1.weight)
-        xavier_uniform_(self.linear2.weight)
+        pass
 
     def with_pos_embed(self, tensor, pos):
         return tensor if pos is None else tensor + pos
@@ -210,15 +194,15 @@ class DeformableTransformerEncoder(nn.Module):
         valid_ratios = valid_ratios.unsqueeze(1)
         reference_points = []
         for i, (H, W) in enumerate(spatial_shapes.tolist()):
-            ref_y, ref_x = paddle.meshgrid(
-                paddle.linspace(0.5, H - 0.5, H),
-                paddle.linspace(0.5, W - 0.5, W))
+            ref_y, ref_x = torch.meshgrid(
+                torch.linspace(0.5, H - 0.5, H),
+                torch.linspace(0.5, W - 0.5, W))
             ref_y = ref_y.flatten().unsqueeze(0) / (valid_ratios[:, :, i, 1] *
                                                     H)
             ref_x = ref_x.flatten().unsqueeze(0) / (valid_ratios[:, :, i, 0] *
                                                     W)
-            reference_points.append(paddle.stack((ref_x, ref_y), axis=-1))
-        reference_points = paddle.concat(reference_points, 1).unsqueeze(2)
+            reference_points.append(torch.stack((ref_x, ref_y), axis=-1))
+        reference_points = torch.concat(reference_points, 1).unsqueeze(2)
         reference_points = reference_points * valid_ratios
         return reference_points
 
@@ -230,7 +214,7 @@ class DeformableTransformerEncoder(nn.Module):
                 valid_ratios=None):
         output = src
         if valid_ratios is None:
-            valid_ratios = paddle.ones(
+            valid_ratios = torch.ones(
                 [src.shape[0], spatial_shapes.shape[0], 2])
         reference_points = self.get_reference_points(spatial_shapes,
                                                      valid_ratios)
@@ -277,10 +261,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
-        linear_init_(self.linear1)
-        linear_init_(self.linear2)
-        xavier_uniform_(self.linear1.weight)
-        xavier_uniform_(self.linear2.weight)
+        pass
 
     def with_pos_embed(self, tensor, pos):
         return tensor if pos is None else tensor + pos
@@ -341,7 +322,7 @@ class DeformableTransformerDecoder(nn.Module):
                 intermediate.append(output)
 
         if self.return_intermediate:
-            return paddle.stack(intermediate)
+            return torch.stack(intermediate)
 
         return output.unsqueeze(0)
 
@@ -396,10 +377,9 @@ class DeformableTransformer(nn.Module):
         self.reference_points = nn.Linear(
             hidden_dim,
             2,
-            weight_attr=ParamAttr(learning_rate=lr_mult),
-            bias_attr=ParamAttr(learning_rate=lr_mult))
+            bias=True)
 
-        self.input_proj = nn.LayerList()
+        self.input_proj = nn.ModuleList()
         for in_channels in backbone_num_channels:
             self.input_proj.append(
                 nn.Sequential(
@@ -408,7 +388,7 @@ class DeformableTransformer(nn.Module):
                         hidden_dim,
                         kernel_size=1,
                         weight_attr=weight_attr,
-                        bias_attr=bias_attr),
+                        bias=bias_attr),
                     nn.GroupNorm(32, hidden_dim)))
         in_channels = backbone_num_channels[-1]
         for _ in range(num_feature_levels - len(backbone_num_channels)):
@@ -421,7 +401,7 @@ class DeformableTransformer(nn.Module):
                         stride=2,
                         padding=1,
                         weight_attr=weight_attr,
-                        bias_attr=bias_attr),
+                        bias=bias_attr),
                     nn.GroupNorm(32, hidden_dim)))
             in_channels = hidden_dim
 
@@ -434,25 +414,18 @@ class DeformableTransformer(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
-        normal_(self.level_embed.weight)
-        normal_(self.tgt_embed.weight)
-        normal_(self.query_pos_embed.weight)
-        xavier_uniform_(self.reference_points.weight)
-        constant_(self.reference_points.bias)
-        for l in self.input_proj:
-            xavier_uniform_(l[0].weight)
-            constant_(l[0].bias)
+        pass
 
     @classmethod
     def from_config(cls, cfg, input_shape):
         return {'backbone_num_channels': [i.channels for i in input_shape], }
 
     def _get_valid_ratio(self, mask):
-        mask = mask.astype(paddle.float32)
+        mask = mask.astype(torch.float32)
         _, H, W = mask.shape
-        valid_ratio_h = paddle.sum(mask[:, :, 0], 1) / H
-        valid_ratio_w = paddle.sum(mask[:, 0, :], 1) / W
-        valid_ratio = paddle.stack([valid_ratio_w, valid_ratio_h], -1)
+        valid_ratio_h = torch.sum(mask[:, :, 0], 1) / H
+        valid_ratio_w = torch.sum(mask[:, 0, :], 1) / W
+        valid_ratio = torch.stack([valid_ratio_w, valid_ratio_h], -1)
         return valid_ratio
 
     def forward(self, src_feats, src_mask=None):
@@ -481,7 +454,7 @@ class DeformableTransformer(nn.Module):
                     src_mask.unsqueeze(0).astype(src.dtype),
                     size=(h, w))[0].astype('bool')
             else:
-                mask = paddle.ones([bs, h, w], dtype='bool')
+                mask = torch.ones([bs, h, w], dtype='bool')
             valid_ratios.append(self._get_valid_ratio(mask))
             pos_embed = self.position_embedding(mask).flatten(2).transpose(
                 [0, 2, 1])
@@ -490,13 +463,13 @@ class DeformableTransformer(nn.Module):
             lvl_pos_embed_flatten.append(lvl_pos_embed)
             mask = mask.astype(src.dtype).flatten(1)
             mask_flatten.append(mask)
-        src_flatten = paddle.concat(src_flatten, 1)
-        mask_flatten = paddle.concat(mask_flatten, 1)
-        lvl_pos_embed_flatten = paddle.concat(lvl_pos_embed_flatten, 1)
+        src_flatten = torch.concat(src_flatten, 1)
+        mask_flatten = torch.concat(mask_flatten, 1)
+        lvl_pos_embed_flatten = torch.concat(lvl_pos_embed_flatten, 1)
         # [l, 2]
-        spatial_shapes = paddle.to_tensor(spatial_shapes, dtype='int64')
+        spatial_shapes = torch.tensor(spatial_shapes, dtype='int64')
         # [b, l, 2]
-        valid_ratios = paddle.stack(valid_ratios, 1)
+        valid_ratios = torch.stack(valid_ratios, 1)
 
         # encoder
         memory = self.encoder(src_flatten, spatial_shapes, mask_flatten,

@@ -31,6 +31,7 @@ from . import cspnext
 from . import yolov8_csp_darknet
 # from . import vision_transformer
 # from . import mobileone
+from . import hgnet_v2
 
 from .vgg import *
 from .resnet import *
@@ -59,3 +60,4 @@ from .yolov8_csp_darknet import *
 # from .vision_transformer import *
 # from .vision_transformer import *
 # from .mobileone import *
+from .hgnet_v2 import *

@@ -28,8 +28,6 @@ from ..layers import MultiHeadAttention, _convert_attention_mask
 from .position_encoding import PositionEmbedding
 from .utils import _get_clones
 
-# from ..initializer import linear_init_, conv_init_, xavier_uniform_, normal_
-
 __all__ = ['DETRTransformer']
 
 
@@ -51,13 +49,13 @@ class TransformerEncoderLayer(nn.Module):
         self.self_attn = MultiHeadAttention(d_model, nhead, attn_dropout)
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward)
-        self.dropout = nn.Dropout(act_dropout, mode="upscale_in_train")
+        self.dropout = nn.Dropout(act_dropout)
         self.linear2 = nn.Linear(dim_feedforward, d_model)
 
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
-        self.dropout1 = nn.Dropout(dropout, mode="upscale_in_train")
-        self.dropout2 = nn.Dropout(dropout, mode="upscale_in_train")
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
         self.activation = getattr(F, activation)
         self._reset_parameters()
 
@@ -133,15 +131,15 @@ class TransformerDecoderLayer(nn.Module):
         self.cross_attn = MultiHeadAttention(d_model, nhead, attn_dropout)
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward)
-        self.dropout = nn.Dropout(act_dropout, mode="upscale_in_train")
+        self.dropout = nn.Dropout(act_dropout)
         self.linear2 = nn.Linear(dim_feedforward, d_model)
 
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
         self.norm3 = nn.LayerNorm(d_model)
-        self.dropout1 = nn.Dropout(dropout, mode="upscale_in_train")
-        self.dropout2 = nn.Dropout(dropout, mode="upscale_in_train")
-        self.dropout3 = nn.Dropout(dropout, mode="upscale_in_train")
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+        self.dropout3 = nn.Dropout(dropout)
         self.activation = getattr(F, activation)
         self._reset_parameters()
 
@@ -291,11 +289,6 @@ class DETRTransformer(nn.Module):
 
     def _reset_parameters(self):
         pass
-        # for p in self.parameters():
-        #     if p.dim() > 1:
-        #         xavier_uniform_(p)
-        # conv_init_(self.input_proj)
-        # normal_(self.query_pos_embed.weight)
 
     @classmethod
     def from_config(cls, cfg, input_shape):
@@ -334,7 +327,7 @@ class DETRTransformer(nn.Module):
                 src_mask.unsqueeze(0).astype(src_flatten.dtype),
                 size=(h, w))[0].astype('bool')
         else:
-            src_mask = torch.ones([bs, h, w], dtype='bool')
+            src_mask = torch.ones([bs, h, w], dtype=torch.bool)
         pos_embed = self.position_embedding(src_mask).flatten(2).transpose(
             [0, 2, 1])
 
@@ -354,5 +347,5 @@ class DETRTransformer(nn.Module):
             pos_embed=pos_embed,
             query_pos_embed=query_pos_embed)
 
-        return (output, memory.transpose([0, 2, 1]).reshape([bs, c, h, w]),
+        return (output, memory.permute(0, 2, 1).reshape([bs, c, h, w]),
                 src_proj, src_mask.reshape([bs, 1, 1, h, w]))

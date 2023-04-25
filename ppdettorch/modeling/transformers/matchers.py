@@ -25,7 +25,7 @@ import torch.nn.functional as F
 from scipy.optimize import linear_sum_assignment
 
 from ppdettorch.core.workspace import register, serializable
-from  ppdettorch.modeling.losses.iou_loss import GIoULoss
+from ppdettorch.modeling.losses.iou_loss import GIoULoss
 from .utils import bbox_cxcywh_to_xyxy
 
 __all__ = ['HungarianMatcher']
@@ -74,8 +74,8 @@ class HungarianMatcher(nn.Module):
 
         num_gts = sum(len(a) for a in gt_class)
         if num_gts == 0:
-            return [(torch.to_tensor(
-                [], dtype=torch.int64), torch.to_tensor(
+            return [(torch.tensor(
+                [], dtype=torch.int64), torch.tensor(
                     [], dtype=torch.int64)) for _ in range(bs)]
 
         # We flatten to compute the cost matrices in a batch
@@ -121,6 +121,6 @@ class HungarianMatcher(nn.Module):
             linear_sum_assignment(c.split(sizes, -1)[i].numpy())
             for i, c in enumerate(C)
         ]
-        return [(torch.to_tensor(
-            i, dtype=torch.int64), torch.to_tensor(
+        return [(torch.tensor(
+            i, dtype=torch.int64), torch.tensor(
                 j, dtype=torch.int64)) for i, j in indices]
