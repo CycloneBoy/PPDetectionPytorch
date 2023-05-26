@@ -28,6 +28,7 @@ class DetectionRunInfer(object):
         self.base_dir = Constants.WORK_DIR
         self.detection_config_dir = f"{Constants.WORK_DIR}/configs"
         self.checkpoint_base_url = "https://paddledet.bj.bcebos.com/models"
+        self.checkpoint_base_url_paddledet = "https://bj.bcebos.com/v1/paddledet/models"
         self.checkpoint_base_url_ppstructure = "https://paddleocr.bj.bcebos.com/ppstructure/models/layout/"
         self.checkpoint_base_url_pedestrian = "https://bj.bcebos.com/v1/paddledet/models/keypoint/tinypose_enhance/"
         # self.checkpoint_base_url = "~/.cache/paddle/weights/"
@@ -57,13 +58,24 @@ class DetectionRunInfer(object):
         elif model_name in ['retinanet_r50_fpn_2x_coco']:
             base_url = self.checkpoint_base_url
             model_name = "retinanet_r101_distill_r50_2x_coco"
+        elif model_name in ["rtdetr_r34vd_6x_coco", "rtdetr_r18vd_6x_coco"]:
+            base_url = self.checkpoint_base_url_paddledet
         else:
             base_url = self.checkpoint_base_url
 
+        # model param name replace
+        model_params_config = {
+            "rtdetr_r34vd_6x_coco": "rtdetr_r34vd_dec4_6x_coco",
+            "rtdetr_r18vd_6x_coco": "rtdetr_r18vd_dec3_6x_coco",
+        }
+
         if layout_zh:
             checkpoint_file = f"{base_url}/picodet_lcnet_x1_0_fgd_layout_cdla.pdparams"
+        elif model_name in model_params_config.keys():
+            checkpoint_file = f"{base_url}/{model_params_config.get(model_name, model_name)}.pdparams"
         else:
             checkpoint_file = f"{base_url}/{model_name}.pdparams"
+
         # picodet_lcnet_x1_0_fgd_layout_cdla.pdparams
         # picodet_lcnet_x1_0_fgd_layout.pdparams
         # checkpoint_file = f"{self.checkpoint_base_url}/{config_name}.pth"
@@ -178,10 +190,13 @@ class DetectionRunInfer(object):
         # config_name = f"retinanet_r50_fpn_2x_coco.yml"
 
         # rtdetr
-        config_name = f"rtdetr_r50vd_6x_coco.yml"
-        # config_name = f"rtdetr_r101vd_6x_coco.yml"
+        # config_name = f"rtdetr_r50vd_6x_coco.yml"
+        config_name = f"rtdetr_r101vd_6x_coco.yml"
         # config_name = f"rtdetr_hgnetv2_l_6x_coco.yml"
         # config_name = f"rtdetr_hgnetv2_x_6x_coco.yml"
+        # config_name = f"rtdetr_r50vd_m_6x_coco.yml"
+        # config_name = f"rtdetr_r34vd_6x_coco.yml"
+        # config_name = f"rtdetr_r18vd_6x_coco.yml"
 
         # run_arg = DetectionInferUtils.init_args()
         config_name = config_name if not config_name.endswith(".yml") else config_name[:-4]

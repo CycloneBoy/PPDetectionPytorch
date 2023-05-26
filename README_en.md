@@ -23,6 +23,7 @@ This project aims to:
 
 **RECENT UPDATED**
 
+- 2023-05-26 Migration model inference part: rt-detr(RT-DETR-R50-m,RT-DETR-R34,RT-DETR-R18)
 - 2023-04-25 Migration model inference part: rt-detr(DETRs Beat YOLOs on Real-time Object Detection)
 - 2023-02-13 Migration model inference part: retinanet
 - 2023-02-11 Migration model inference part: blazeface
@@ -64,7 +65,6 @@ The run_picodet_coco_batch function in [run_detection_infer.py](./tests/process/
 - [PaddleOCR2Pytorch](https://github.com/frotms/PaddleOCR2Pytorch)
 
 # PaddleDetection readme
-
 [简体中文](README_cn.md) | English
 
 <div align="center">
