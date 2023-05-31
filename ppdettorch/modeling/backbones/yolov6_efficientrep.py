@@ -26,17 +26,11 @@ from ..shape_spec import ShapeSpec
 __all__ = ['EfficientRep', 'CSPBepBackbone', 'Lite_EffiBackbone']
 
 
-def get_activation(name="silu"):
-    if name == "silu":
-        module = nn.SiLU()
-    elif name == "relu":
-        module = nn.ReLU()
-    elif name in ["LeakyReLU", 'leakyrelu', 'lrelu']:
-        module = nn.LeakyReLU(0.1)
-    else:
-        raise AttributeError("Unsupported act type: {}".format(name))
-    return module
-
+activation_table = {
+    'relu': nn.ReLU(),
+    'silu': nn.SiLU(),
+    'hardswish': nn.Hardswish()
+}
 
 class SiLU(nn.Module):
     def __init__(self):
@@ -65,7 +59,10 @@ class BaseConv(nn.Module):
             groups=groups,
             bias=bias)
         self.bn = nn.BatchNorm2d(out_channels)
-        self.act = get_activation(act)  # silu
+        if act is not None:
+            self.act = activation_table.get(act)
+        else:
+            self.act = nn.Identity()
 
     def forward(self, x):
         x = self.bn(self.conv(x))
@@ -1043,7 +1040,7 @@ class Lite_EffiBackbone(nn.Module):
                     mid_channels=mid_channels,
                     out_channels=out_channels,
                     stride=1)
-            block_list.add_sublayer(str(i), block)
+            block_list.add_module(str(i), block)
         return block_list
 
     @property

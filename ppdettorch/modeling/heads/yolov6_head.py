@@ -1058,10 +1058,10 @@ class Lite_EffideHead(nn.Module):
         self.proj_conv = nn.Conv2d(self.reg_max + 1, 1, 1, bias=False)
         self.proj_conv.skip_quant = True
 
-        self.proj = torch.linspace(0, self.reg_max, self.reg_max + 1)
-        self.proj_conv.weight.set_value(
-            self.proj.reshape([1, self.reg_max + 1, 1, 1]))
-        self.proj_conv.weight.stop_gradient = True
+        # self.proj = torch.linspace(0, self.reg_max, self.reg_max + 1)
+        # self.proj_conv.weight.set_value(
+        #     self.proj.reshape([1, self.reg_max + 1, 1, 1]))
+        # self.proj_conv.weight.stop_gradient = True
         self.print_l1_loss = print_l1_loss
         self._initialize_biases()
 

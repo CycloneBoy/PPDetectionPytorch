@@ -26,6 +26,7 @@
 
 **近期更新**
 
+- 2023-05-31 修复问题issue #1 yolov6 推理部分
 - 2023-05-26 迁移模型推理部分: rt-detr(RT-DETR-R50-m,RT-DETR-R34,RT-DETR-R18)
 - 2023-04-25 迁移模型推理部分: rt-detr(DETRs Beat YOLOs on Real-time Object Detection)
 - 2023-02-03 迁移模型推理部分：retinanet

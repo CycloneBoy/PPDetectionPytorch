@@ -160,10 +160,14 @@ class DetectionRunInfer(object):
         # config_name = "ppyoloe_convnext_tiny_36e_coco.yml"
 
         # # yolov6
-        config_name = "yolov6_n_300e_coco.yml"
+        # config_name = "yolov6_n_300e_coco.yml"
         # config_name = "yolov6_s_300e_coco.yml"
         # config_name = "yolov6_m_300e_coco.yml"
         config_name = "yolov6_l_300e_coco.yml"
+
+        # config_name = "yolov6lite/yolov6lite_s_400e_coco.yml"
+        # config_name = "yolov6lite/yolov6lite_m_400e_coco.yml"
+        # config_name = "yolov6lite/yolov6lite_l_400e_coco.yml"
 
         # # yolov7
         # config_name = "yolov7_l_300e_coco.yml"
@@ -215,6 +219,8 @@ class DetectionRunInfer(object):
             model_class = "ssd"
         elif "blazeface_" in config_name:
             model_class = "face_detection"
+        elif "yolov6lite_" in config_name:
+            model_class = "yolov6"
         else:
             config_name_end_index = FileUtils.get_file_name(config_name).find("_")
             model_class = config_name[:config_name_end_index]

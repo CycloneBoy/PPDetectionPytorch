@@ -23,6 +23,7 @@ This project aims to:
 
 **RECENT UPDATED**
 
+- 2023-05-31 fix issue #1 yolov6 infer update
 - 2023-05-26 Migration model inference part: rt-detr(RT-DETR-R50-m,RT-DETR-R34,RT-DETR-R18)
 - 2023-04-25 Migration model inference part: rt-detr(DETRs Beat YOLOs on Real-time Object Detection)
 - 2023-02-13 Migration model inference part: retinanet
