@@ -58,7 +58,8 @@ MODEL_PARAMS_CONFIG = {
     },
     "yolov6": {
         "rename": [
-            re.compile(r"(backbone.stage\d+)\.(repconv|replayer|simsppf|bepc3layer|sppf)(.*)")
+            re.compile(r"(backbone.stage\d+)\.(repconv|replayer|cspsppf|simsppf|simcspsppf|bepc3layer|sppf)(.*)")
+            # re.compile(r"(yolo_head.yolo_output)\.(\d+)(.*)")
         ],
         "transpose": [],
         "filter": [],

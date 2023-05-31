@@ -19,30 +19,31 @@ from __future__ import print_function
 from ppdettorch.core.workspace import register, create
 from .meta_arch import BaseArch
 
-__all__ = ['YOLOv5']
+__all__ = ['YOLOv6']
 
 
 @register
-class YOLOv5(BaseArch):
+class YOLOv6(BaseArch):
     __category__ = 'architecture'
+    __inject__ = ['post_process']
 
     def __init__(self,
-                 backbone='CSPDarkNet',
-                 neck='YOLOCSPPAN',
-                 yolo_head='YOLOv5Head',
+                 backbone='EfficientRep',
+                 neck='RepBiFPAN',
+                 yolo_head='EffiDeHead',
                  post_process='BBoxPostProcess',
                  for_mot=False):
         """
-        YOLOv5, YOLOv6(https://arxiv.org/abs/2209.02976) and YOLOv7(https://arxiv.org/abs/2207.02696)
+        YOLOv6(https://arxiv.org/abs/2209.02976, https://arxiv.org/abs/2301.05586)
 
         Args:
-            backbone (nn.Module): backbone instance
-            neck (nn.Module): neck instance
-            yolo_head (nn.Module): anchor_head instance
+            backbone (nn.Layer): backbone instance
+            neck (nn.Layer): neck instance
+            yolo_head (nn.Layer): head instance
             for_mot (bool): whether return other features for multi-object tracking
                 models, default False in pure object detection models.
         """
-        super(YOLOv5, self).__init__()
+        super(YOLOv6, self).__init__()
         self.backbone = backbone
         self.neck = neck
         self.yolo_head = yolo_head
@@ -77,15 +78,18 @@ class YOLOv5(BaseArch):
             return yolo_losses
         else:
             yolo_head_outs = self.yolo_head(neck_feats)
-            if self.post_process is not None:
-                bbox, bbox_num = self.post_process(yolo_head_outs,
-                                                   self.inputs['im_shape'],
-                                                   self.inputs['scale_factor'])
+            post_outs = self.yolo_head.post_process(yolo_head_outs,
+                                                    self.inputs['im_shape'],
+                                                    self.inputs['scale_factor'])
+
+            if not isinstance(post_outs, (tuple, list)):
+                # if set exclude_post_process, concat([pred_bboxes, pred_scores]) not scaled to origin
+                # export onnx as torch yolo models
+                return post_outs
             else:
-                bbox, bbox_num = self.yolo_head.post_process(
-                    yolo_head_outs, self.inputs['im_shape'],
-                    self.inputs['scale_factor'])
-            return {'bbox': bbox, 'bbox_num': bbox_num}
+                # if set exclude_nms, [pred_bboxes, pred_scores] scaled to origin
+                bbox, bbox_num = post_outs  # default for end-to-end eval/infer
+                return {'bbox': bbox, 'bbox_num': bbox_num}
 
     def get_loss(self):
         return self._forward()

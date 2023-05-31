@@ -1,29 +1,22 @@
 input_height: &input_height 640
 input_width: &input_width 640
 input_size: &input_size [*input_height, *input_width]
-mosaic_epoch: &mosaic_epoch 300
+mosaic_epoch: &mosaic_epoch 290 # last 10 epochs close mosaic, totally 300 epochs as default
 
 worker_num: 4
 TrainReader:
   sample_transforms:
     - Decode: {}
-    - MosaicPerspective:
-        mosaic_prob: 1.0
-        target_size: *input_size
-        degrees: 0.373
-        translate: 0.245
-        scale: 0.898
-        shear: 0.602
-        mixup_prob: 0.243
-    - RandomHSV: {hgain: 0.0138, sgain: 0.664, vgain: 0.464}
+    - MosaicPerspective: {mosaic_prob: 1.0, target_size: *input_size, scale: 0.9, mixup_prob: 0.1, copy_paste_prob: 0.1}
+    - RandomHSV: {hgain: 0.015, sgain: 0.7, vgain: 0.4}
     - RandomFlip: {}
   batch_transforms:
     - NormalizeImage: {mean: [0., 0., 0.], std: [1., 1., 1.], norm_type: none}
     - Permute: {}
     - PadGT: {}
-  batch_size: 32
+  batch_size: 8
   shuffle: True
-  drop_last: True
+  drop_last: False
   use_shared_memory: True
   collate_batch: True
   mosaic_epoch: *mosaic_epoch
@@ -41,7 +34,7 @@ EvalReader:
 
 TestReader:
   inputs_def:
-    image_shape: [3, *input_height, *input_width]
+    image_shape: [3, 640, 640]
   sample_transforms:
     - Decode: {}
     - Resize: {target_size: *input_size, keep_ratio: True, interp: 1}

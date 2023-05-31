@@ -23,7 +23,7 @@ from torch.nn.parameter import Parameter
 from ppdettorch.core.workspace import register, serializable
 from ..shape_spec import ShapeSpec
 
-__all__ = ['EfficientRep', 'CSPBepBackbone']
+__all__ = ['EfficientRep', 'CSPBepBackbone', 'Lite_EffiBackbone']
 
 
 def get_activation(name="silu"):
@@ -363,7 +363,7 @@ class SPPF(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=5, act='silu'):
         super(SPPF, self).__init__()
         hidden_channels = in_channels // 2
-        self.cv1 = BaseConv(
+        self.conv1 = BaseConv(
             in_channels, hidden_channels, ksize=1, stride=1, act=act)
         self.conv2 = BaseConv(
             hidden_channels * 4, out_channels, ksize=1, stride=1, act=act)
@@ -371,12 +371,69 @@ class SPPF(nn.Module):
             kernel_size=kernel_size, stride=1, padding=kernel_size // 2)
 
     def forward(self, x):
-        x = self.cv1(x)
+        x = self.conv1(x)
         y1 = self.mp(x)
         y2 = self.mp(y1)
         y3 = self.mp(y2)
         concats = torch.concat([x, y1, y2, y3], 1)
         return self.conv2(concats)
+
+
+class SimCSPSPPF(nn.Module):
+    """Simplified CSP SPPF with SimConv, use relu, YOLOv6 v3.0 added"""
+
+    def __init__(self, in_channels, out_channels, kernel_size=5, e=0.5):
+        super(SimCSPSPPF, self).__init__()
+        c_ = int(out_channels * e)  # hidden channels
+        self.cv1 = SimConv(in_channels, c_, 1, 1)
+        self.cv2 = SimConv(in_channels, c_, 1, 1)
+        self.cv3 = SimConv(c_, c_, 3, 1)
+        self.cv4 = SimConv(c_, c_, 1, 1)
+
+        self.mp = nn.MaxPool2d(
+            kernel_size=kernel_size, stride=1, padding=kernel_size // 2)
+        self.cv5 = SimConv(4 * c_, c_, 1, 1)
+        self.cv6 = SimConv(c_, c_, 3, 1)
+        self.cv7 = SimConv(2 * c_, out_channels, 1, 1)
+
+    def forward(self, x):
+        x1 = self.cv4(self.cv3(self.cv1(x)))
+        y0 = self.cv2(x)
+        y1 = self.mp(x1)
+        y2 = self.mp(y1)
+        y3 = self.cv6(self.cv5(torch.concat([x1, y1, y2, self.mp(y2)], 1)))
+        return self.cv7(torch.concat([y0, y3], 1))
+
+
+class CSPSPPF(nn.Module):
+    """CSP SPPF with BaseConv, use silu, YOLOv6 v3.0 added"""
+
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 kernel_size=5,
+                 e=0.5,
+                 act='silu'):
+        super(CSPSPPF, self).__init__()
+        c_ = int(out_channels * e)  # hidden channels
+        self.cv1 = BaseConv(in_channels, c_, 1, 1)
+        self.cv2 = BaseConv(in_channels, c_, 1, 1)
+        self.cv3 = BaseConv(c_, c_, 3, 1)
+        self.cv4 = BaseConv(c_, c_, 1, 1)
+
+        self.mp = nn.MaxPool2d(
+            kernel_size=kernel_size, stride=1, padding=kernel_size // 2)
+        self.cv5 = BaseConv(4 * c_, c_, 1, 1)
+        self.cv6 = BaseConv(c_, c_, 3, 1)
+        self.cv7 = BaseConv(2 * c_, out_channels, 1, 1)
+
+    def forward(self, x):
+        x1 = self.cv4(self.cv3(self.conv1(x)))
+        y0 = self.cv2(x)
+        y1 = self.mp(x1)
+        y2 = self.mp(y1)
+        y3 = self.cv6(self.cv5(torch.concat([x1, y1, y2, self.mp(y2)], 1)))
+        return self.cv7(torch.concat([y0, y3], 1))
 
 
 class Transpose(nn.Module):
@@ -402,29 +459,42 @@ def make_divisible(x, divisor):
 @register
 @serializable
 class EfficientRep(nn.Module):
-    """EfficientRep backbone of YOLOv6 n/t/s """
-    __shared__ = ['width_mult', 'depth_mult', 'trt', 'act', 'training_mode']
+    """EfficientRep backbone of YOLOv6 n/s """
+    __shared__ = ['width_mult', 'depth_mult', 'act', 'training_mode']
 
-    def __init__(self,
-                 width_mult=1.0,
-                 depth_mult=1.0,
-                 num_repeats=[1, 6, 12, 18, 6],
-                 channels_list=[64, 128, 256, 512, 1024],
-                 return_idx=[2, 3, 4],
-                 training_mode='repvgg',
-                 act='relu',
-                 trt=False):
+    # num_repeats, channels_list, 'P6' means add P6 layer
+    arch_settings = {
+        'P5': [[1, 6, 12, 18, 6], [64, 128, 256, 512, 1024]],
+        'P6': [[1, 6, 12, 18, 6, 6], [64, 128, 256, 512, 768, 1024]],
+    }
+
+    def __init__(
+            self,
+            arch='P5',
+            width_mult=0.33,
+            depth_mult=0.50,
+            return_idx=[2, 3, 4],
+            training_mode='repvgg',
+            fuse_P2=True,  # add P2 and return 4 layers
+            cspsppf=True,
+            act='relu'):
         super(EfficientRep, self).__init__()
+        num_repeats, channels_list = self.arch_settings[arch]
         num_repeats = [(max(round(i * depth_mult), 1) if i > 1 else i)
                        for i in (num_repeats)]
         channels_list = [
             make_divisible(i * width_mult, 8) for i in (channels_list)
         ]
         self.return_idx = return_idx
+        self.fuse_P2 = fuse_P2
+        if self.fuse_P2:
+            # stem,p2,p3,p4,p5: [0,1,2,3,4]
+            self.return_idx = [1] + self.return_idx
         self._out_channels = [channels_list[i] for i in self.return_idx]
         self.strides = [[2, 4, 8, 16, 32, 64][i] for i in self.return_idx]
 
         block = get_block(training_mode)
+        # default block is RepConv
         self.stem = block(3, channels_list[0], 3, 2)
         self.blocks = []
         for i, (out_ch,
@@ -442,9 +512,14 @@ class EfficientRep(nn.Module):
             stage.append(replayer)
 
             if i == len(channels_list) - 1:
-                simsppf_layer = SimSPPF(out_ch, out_ch, kernel_size=5)
-                self.add_module('stage{}_simsppf'.format(i + 1), simsppf_layer)
-                stage.append(simsppf_layer)
+                if cspsppf:
+                    simsppf_layer = SimCSPSPPF(out_ch, out_ch, kernel_size=5)
+                    self.add_module('stage{}_simcspsppf'.format(i + 1), simsppf_layer)
+                    stage.append(simsppf_layer)
+                else:
+                    simsppf_layer = SimSPPF(out_ch, out_ch, kernel_size=5)
+                    self.add_module('stage{}_simsppf'.format(i + 1), simsppf_layer)
+                    stage.append(simsppf_layer)
             self.blocks.append(nn.Sequential(*stage))
 
     def forward(self, inputs):
@@ -470,32 +545,46 @@ class EfficientRep(nn.Module):
 @serializable
 class CSPBepBackbone(nn.Module):
     """CSPBepBackbone of YOLOv6 m/l """
-    __shared__ = ['width_mult', 'depth_mult', 'trt', 'act', 'training_mode']
+    __shared__ = ['width_mult', 'depth_mult', 'act', 'training_mode']
+
+    # num_repeats, channels_list, 'P6' means add P6 layer
+    arch_settings = {
+        'P5': [[1, 6, 12, 18, 6], [64, 128, 256, 512, 1024]],
+        'P6': [[1, 6, 12, 18, 6, 6], [64, 128, 256, 512, 768, 1024]],
+    }
 
     def __init__(self,
+                 arch='P5',
                  width_mult=1.0,
                  depth_mult=1.0,
-                 num_repeats=[1, 6, 12, 18, 6],
-                 channels_list=[64, 128, 256, 512, 1024],
                  return_idx=[2, 3, 4],
                  csp_e=0.5,
                  training_mode='repvgg',
-                 act='relu',
-                 trt=False):
+                 fuse_P2=True,
+                 cspsppf=False,
+                 act='relu'):
         super(CSPBepBackbone, self).__init__()
+        num_repeats, channels_list = self.arch_settings[arch]
         num_repeats = [(max(round(i * depth_mult), 1) if i > 1 else i)
                        for i in (num_repeats)]
         channels_list = [
             make_divisible(i * width_mult, 8) for i in (channels_list)
         ]
         self.return_idx = return_idx
+        self.fuse_P2 = fuse_P2
+        if self.fuse_P2:
+            # stem,p2,p3,p4,p5: [0,1,2,3,4]
+            self.return_idx = [1] + self.return_idx
         self._out_channels = [channels_list[i] for i in self.return_idx]
         self.strides = [[2, 4, 8, 16, 32, 64][i] for i in self.return_idx]
 
         block = get_block(training_mode)
+        # RepConv(or RepVGGBlock) in M, but ConvBNSiLUBlock(or ConvWrapper) in L
+
         self.stem = block(3, channels_list[0], 3, 2)
         self.blocks = []
-        if csp_e == 0.67: csp_e = float(2) / 3
+        if csp_e == 0.67:
+            csp_e = float(2) / 3
         for i, (out_ch,
                 num_repeat) in enumerate(zip(channels_list, num_repeats)):
             if i == 0: continue
@@ -516,14 +605,25 @@ class CSPBepBackbone(nn.Module):
             stage.append(bepc3layer)
 
             if i == len(channels_list) - 1:
-                if training_mode == 'conv_silu':
-                    sppf_layer = SPPF(out_ch, out_ch, kernel_size=5, act='silu')
-                    self.add_module('stage{}_sppf'.format(i + 1), sppf_layer)
-                    stage.append(sppf_layer)
+                if cspsppf:
+                    # m/l never use cspsppf=True
+                    if training_mode == 'conv_silu':
+                        sppf_layer = CSPSPPF(out_ch, out_ch, kernel_size=5, act='silu')
+                        self.add_module('stage{}_cspsppf'.format(i + 1),sppf_layer)
+                        stage.append(sppf_layer)
+                    else:
+                        simsppf_layer = SimCSPSPPF(out_ch, out_ch, kernel_size=5)
+                        self.add_module('stage{}_simcspsppf'.format(i + 1),simsppf_layer)
+                        stage.append(simsppf_layer)
                 else:
-                    simsppf_layer = SimSPPF(out_ch, out_ch, kernel_size=5)
-                    self.add_module('stage{}_simsppf'.format(i + 1), simsppf_layer)
-                    stage.append(simsppf_layer)
+                    if training_mode == 'conv_silu':
+                        sppf_layer = SPPF(out_ch, out_ch, kernel_size=5, act='silu')
+                        self.add_module('stage{}_sppf'.format(i + 1), sppf_layer)
+                        stage.append(sppf_layer)
+                    else:
+                        simsppf_layer = SimSPPF(out_ch, out_ch, kernel_size=5)
+                        self.add_module('stage{}_simsppf'.format(i + 1), simsppf_layer)
+                        stage.append(simsppf_layer)
             self.blocks.append(nn.Sequential(*stage))
 
     def forward(self, inputs):
@@ -586,3 +686,370 @@ class ConvBNReLUBlock(nn.Module):
 
     def forward(self, x):
         return self.base_block(x)
+
+
+######################### YOLOv6 lite #########################
+
+
+class ConvBN(nn.Module):
+    '''Conv and BN without activation'''
+
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 kernel_size=3,
+                 stride=1,
+                 groups=1,
+                 bias=False):
+        super().__init__()
+        self.base_block = BaseConv(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            groups,
+            bias,
+            act=None)
+
+    def forward(self, x):
+        return self.base_block(x)
+
+
+class ConvBNHS(nn.Module):
+    '''Conv and BN with Hardswish activation'''
+
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 kernel_size=3,
+                 stride=1,
+                 padding=None,
+                 groups=1,
+                 bias=False):
+        super().__init__()
+        self.base_block = BaseConv(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            groups,
+            bias,
+            act='hardswish')
+
+    def forward(self, x):
+        return self.base_block(x)
+
+
+class SEBlock(nn.Module):
+    def __init__(self, channel, reduction=4):
+        super().__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.conv1 = nn.Conv2d(
+            in_channels=channel,
+            out_channels=channel // reduction,
+            kernel_size=1,
+            stride=1,
+            padding=0)
+        self.relu = nn.ReLU()
+        self.conv2 = nn.Conv2d(
+            in_channels=channel // reduction,
+            out_channels=channel,
+            kernel_size=1,
+            stride=1,
+            padding=0)
+        self.hardsigmoid = nn.Hardsigmoid()
+
+    def forward(self, x):
+        identity = x
+        x = self.avg_pool(x)
+        x = self.conv1(x)
+        x = self.relu(x)
+        x = self.conv2(x)
+        x = self.hardsigmoid(x)
+        out = identity * x
+        return out
+
+
+class DPBlock(nn.Module):
+    def __init__(self, in_channel=96, out_channel=96, kernel_size=3, stride=1):
+        super().__init__()
+        self.conv_dw_1 = nn.Conv2d(
+            in_channels=in_channel,
+            out_channels=out_channel,
+            kernel_size=kernel_size,
+            groups=out_channel,
+            padding=(kernel_size - 1) // 2,
+            stride=stride)
+        self.bn_1 = nn.BatchNorm2d(out_channel)
+        self.act_1 = nn.Hardswish()
+        self.conv_pw_1 = nn.Conv2d(
+            in_channels=out_channel,
+            out_channels=out_channel,
+            kernel_size=1,
+            groups=1,
+            padding=0)
+        self.bn_2 = nn.BatchNorm2d(out_channel)
+        self.act_2 = nn.Hardswish()
+
+    def forward(self, x):
+        x = self.act_1(self.bn_1(self.conv_dw_1(x)))
+        x = self.act_2(self.bn_2(self.conv_pw_1(x)))
+        return x
+
+    def forward_fuse(self, x):
+        x = self.act_1(self.conv_dw_1(x))
+        x = self.act_2(self.conv_pw_1(x))
+        return x
+
+
+class DarknetBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, expansion=0.5):
+        super().__init__()
+        hidden_channels = int(out_channels * expansion)
+        self.conv_1 = ConvBNHS(
+            in_channels=in_channels,
+            out_channels=hidden_channels,
+            kernel_size=1,
+            stride=1,
+            padding=0)
+        self.conv_2 = DPBlock(
+            in_channel=hidden_channels,
+            out_channel=out_channels,
+            kernel_size=kernel_size,
+            stride=1)
+
+    def forward(self, x):
+        out = self.conv_1(x)
+        out = self.conv_2(out)
+        return out
+
+
+class CSPBlock(nn.Module):
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 kernel_size=3,
+                 expand_ratio=0.5):
+        super().__init__()
+        mid_channels = int(out_channels * expand_ratio)
+        self.conv_1 = ConvBNHS(in_channels, mid_channels, 1, 1, 0)
+        self.conv_2 = ConvBNHS(in_channels, mid_channels, 1, 1, 0)
+        self.conv_3 = ConvBNHS(2 * mid_channels, out_channels, 1, 1, 0)
+        self.blocks = DarknetBlock(mid_channels, mid_channels, kernel_size, 1.0)
+
+    def forward(self, x):
+        x_1 = self.conv_1(x)
+        x_1 = self.blocks(x_1)
+        x_2 = self.conv_2(x)
+        x = torch.concat((x_1, x_2), dim=1)
+        x = self.conv_3(x)
+        return x
+
+
+def channel_shuffle(x, groups):
+    _, num_channels, height, width = x.shape
+    channels_per_group = num_channels // groups
+    # reshape
+    x = x.reshape([-1, groups, channels_per_group, height, width])
+    x = x.transpose([0, 2, 1, 3, 4])
+    # flatten
+    x = x.reshape([-1, groups * channels_per_group, height, width])
+    return x
+
+
+class Lite_EffiBlockS1(nn.Module):
+    def __init__(self, in_channels, mid_channels, out_channels, stride):
+        super().__init__()
+        self.conv_pw_1 = ConvBNHS(
+            in_channels=in_channels // 2,
+            out_channels=mid_channels,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            groups=1)
+        self.conv_dw_1 = ConvBN(
+            in_channels=mid_channels,
+            out_channels=mid_channels,
+            kernel_size=3,
+            stride=stride,
+            groups=mid_channels)
+        self.se = SEBlock(mid_channels)
+        self.conv_1 = ConvBNHS(
+            in_channels=mid_channels,
+            out_channels=out_channels // 2,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            groups=1)
+
+    def forward(self, inputs):
+        x1, x2 = torch.split(
+            inputs,
+            num_or_sections=[inputs.shape[1] // 2, inputs.shape[1] // 2],
+            axis=1)
+        x2 = self.conv_pw_1(x2)
+        x3 = self.conv_dw_1(x2)
+        x3 = self.se(x3)
+        x3 = self.conv_1(x3)
+        out = torch.concat([x1, x3], axis=1)
+        return channel_shuffle(out, 2)
+
+
+class Lite_EffiBlockS2(nn.Module):
+    def __init__(self, in_channels, mid_channels, out_channels, stride):
+        super().__init__()
+        # branch1
+        self.conv_dw_1 = ConvBN(
+            in_channels=in_channels,
+            out_channels=in_channels,
+            kernel_size=3,
+            stride=stride,
+            groups=in_channels)
+        self.conv_1 = ConvBNHS(
+            in_channels=in_channels,
+            out_channels=out_channels // 2,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            groups=1)
+        # branch2
+        self.conv_pw_2 = ConvBNHS(
+            in_channels=in_channels,
+            out_channels=mid_channels // 2,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            groups=1)
+        self.conv_dw_2 = ConvBN(
+            in_channels=mid_channels // 2,
+            out_channels=mid_channels // 2,
+            kernel_size=3,
+            stride=stride,
+            groups=mid_channels // 2)
+        self.se = SEBlock(mid_channels // 2)
+        self.conv_2 = ConvBNHS(
+            in_channels=mid_channels // 2,
+            out_channels=out_channels // 2,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            groups=1)
+        self.conv_dw_3 = ConvBNHS(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+            groups=out_channels)
+        self.conv_pw_3 = ConvBNHS(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            groups=1)
+
+    def forward(self, inputs):
+        x1 = self.conv_dw_1(inputs)
+        x1 = self.conv_1(x1)
+        x2 = self.conv_pw_2(inputs)
+        x2 = self.conv_dw_2(x2)
+        x2 = self.se(x2)
+        x2 = self.conv_2(x2)
+        out = torch.concat([x1, x2], axis=1)
+        out = self.conv_dw_3(out)
+        out = self.conv_pw_3(out)
+        return out
+
+
+def make_divisible_lite(v, divisor=16):
+    new_v = max(divisor, int(v + divisor / 2) // divisor * divisor)
+    if new_v < 0.9 * v:
+        new_v += divisor
+    return new_v
+
+
+@register
+@serializable
+class Lite_EffiBackbone(nn.Module):
+    """Lite_EffiBackbone of YOLOv6-lite"""
+    __shared__ = ['width_mult']
+
+    def __init__(self,
+                 width_mult=1.0,
+                 return_idx=[2, 3, 4],
+                 out_channels=[24, 32, 64, 128, 256],
+                 num_repeat=[1, 3, 7, 3],
+                 scale_size=0.5):
+        super().__init__()
+        self.return_idx = return_idx
+        out_channels = [
+            make_divisible_lite(i * width_mult) for i in out_channels
+        ]
+        mid_channels = [
+            make_divisible_lite(
+                int(i * scale_size), divisor=8) for i in out_channels
+        ]
+
+        out_channels[0] = 24
+        self.conv_0 = ConvBNHS(
+            in_channels=3,
+            out_channels=out_channels[0],
+            kernel_size=3,
+            stride=2,
+            padding=1)
+
+        self.lite_effiblock_1 = self.build_block(
+            num_repeat[0], out_channels[0], mid_channels[1], out_channels[1])
+
+        self.lite_effiblock_2 = self.build_block(
+            num_repeat[1], out_channels[1], mid_channels[2], out_channels[2])
+
+        self.lite_effiblock_3 = self.build_block(
+            num_repeat[2], out_channels[2], mid_channels[3], out_channels[3])
+
+        self.lite_effiblock_4 = self.build_block(
+            num_repeat[3], out_channels[3], mid_channels[4], out_channels[4])
+
+        self._out_channels = [out_channels[i] for i in self.return_idx]
+        self.strides = [[2, 4, 8, 16, 32, 64][i] for i in self.return_idx]
+
+    def forward(self, inputs):
+        x = inputs['image']
+        outputs = []
+        x = self.conv_0(x)
+        x = self.lite_effiblock_1(x)
+        x = self.lite_effiblock_2(x)
+        outputs.append(x)
+        x = self.lite_effiblock_3(x)
+        outputs.append(x)
+        x = self.lite_effiblock_4(x)
+        outputs.append(x)
+        return outputs
+
+    @staticmethod
+    def build_block(num_repeat, in_channels, mid_channels, out_channels):
+        block_list = nn.Sequential()
+        for i in range(num_repeat):
+            if i == 0:
+                block = Lite_EffiBlockS2(
+                    in_channels=in_channels,
+                    mid_channels=mid_channels,
+                    out_channels=out_channels,
+                    stride=2)
+            else:
+                block = Lite_EffiBlockS1(
+                    in_channels=out_channels,
+                    mid_channels=mid_channels,
+                    out_channels=out_channels,
+                    stride=1)
+            block_list.add_sublayer(str(i), block)
+        return block_list
+
+    @property
+    def out_shape(self):
+        return [
+            ShapeSpec(
+                channels=c, stride=s)
+            for c, s in zip(self._out_channels, self.strides)
+        ]

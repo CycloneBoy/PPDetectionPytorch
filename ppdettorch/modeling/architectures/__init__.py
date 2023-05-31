@@ -31,8 +31,10 @@ from . import retinanet
 # from . import bytetrack
 from . import yolox
 from . import yolov5
-from . import rtmdet
+from . import yolov6
+from . import yolov7
 from . import yolov8
+from . import rtmdet
 
 from .meta_arch import *
 # from .faster_rcnn import *
@@ -60,5 +62,7 @@ from .retinanet import *
 # from .bytetrack import *
 from .yolox import *
 from .yolov5 import *
-from .rtmdet import *
+from .yolov6 import *
+from .yolov7 import *
 from .yolov8 import *
+from .rtmdet import *

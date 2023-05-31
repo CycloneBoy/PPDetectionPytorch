@@ -158,10 +158,13 @@ class DetectionRunInfer(object):
         # config_name = "yolov5_convnext_s_36e_coco.yml"
         # config_name = "yolox_convnext_s_36e_coco.yml"
         # config_name = "ppyoloe_convnext_tiny_36e_coco.yml"
-        #
+
         # # yolov6
-        # config_name = "yolov6_s_400e_coco.yml"
-        #
+        config_name = "yolov6_n_300e_coco.yml"
+        # config_name = "yolov6_s_300e_coco.yml"
+        # config_name = "yolov6_m_300e_coco.yml"
+        config_name = "yolov6_l_300e_coco.yml"
+
         # # yolov7
         # config_name = "yolov7_l_300e_coco.yml"
         #
@@ -191,7 +194,7 @@ class DetectionRunInfer(object):
 
         # rtdetr
         # config_name = f"rtdetr_r50vd_6x_coco.yml"
-        config_name = f"rtdetr_r101vd_6x_coco.yml"
+        # config_name = f"rtdetr_r101vd_6x_coco.yml"
         # config_name = f"rtdetr_hgnetv2_l_6x_coco.yml"
         # config_name = f"rtdetr_hgnetv2_x_6x_coco.yml"
         # config_name = f"rtdetr_r50vd_m_6x_coco.yml"
